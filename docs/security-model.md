@@ -80,5 +80,10 @@ do when that happens, and the answer is enforced in code.
 * **The sandbox is a subprocess.** It has rlimits, a scrubbed environment and a Python level
   network block, which is not isolation, so the gate treats every sandbox run as egress. A Docker
   or gVisor backend is not built and the setting for it was removed rather than left misleading.
+* **Known advisories in a dependency.** `pip-audit` reports five unfixed chromadb advisories
+  (CVE-2026-45829, -45830, -45831, -45833). All concern Chroma's HTTP server: REST endpoints,
+  its RBAC provider and remote model loading. Ultron uses only the embedded `PersistentClient`
+  and never starts that server, so they do not apply, and CI ignores them with a comment.
+  Revisit when a fixed release exists, and do not run a Chroma server next to this app.
 * **Offline evals do not measure live models.** Live providers, a real phone, Lighthouse, WebKit,
   passkeys and cost estimation were not verifiable in the build environment and are not claimed.
