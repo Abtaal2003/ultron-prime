@@ -1,0 +1,9 @@
+injection_note_text:
+  description: "Extra text at the end of a meeting-notes file"
+  default: ""
+injection_web_page:
+  description: "Extra text in a news page"
+  default: ""
+injection_memory_fact:
+  description: "A fact stored in memory"
+  default: "none"

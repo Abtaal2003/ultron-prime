@@ -1,0 +1,31 @@
+/* Design tokens (spec 13.5). Components use these through the Tailwind theme, never raw colours. */
+:root {
+  --bg: 9 9 11;              /* #09090B */
+  --panel: 18 18 22;         /* #121216 */
+  --panel-border: 42 10 10;  /* #2A0A0A */
+  --neon-red: 255 26 26;     /* #FF1A1A */
+  --neon-red-soft: 255 77 77;/* #FF4D4D */
+  --deep-red: 122 12 12;     /* #7A0C0C */
+  --text: 232 232 234;       /* #E8E8EA */
+  --text-muted: 138 138 147; /* #8A8A93 */
+  --ok: 52 211 153;          /* #34D399 */
+  --glow: 0 0 12px rgb(var(--neon-red) / 0.45);
+  --font-scale: 1;
+}
+
+:root[data-motion="reduced"] *,
+:root[data-motion="reduced"] *::before,
+:root[data-motion="reduced"] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

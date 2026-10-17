@@ -1,0 +1,183 @@
+"""Run every offline eval and write ``docs/results.md`` (spec 17: the README's results tables).
+
+Offline means scripted models and the hashing embedder: the numbers measure the deterministic
+controls (code, not model judgement). The live columns stay empty until the nightly workflow
+runs with real keys; this file never fills them with guesses.
+
+    python -m evals.report [--n 5] [--out docs/results.md]
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+import tempfile
+from pathlib import Path
+
+from src.config import Settings
+from src.core.memory.embeddings import HashingEmbedder
+from src.core.persona.anchors import load_banks
+from src.core.persona.loader import PERSONA_DIR, load_persona
+
+from evals import file_injection, hallucination, persona
+
+ROOT = Path(__file__).resolve().parent.parent
+REDTEAM = ROOT / "data" / "redteam" / "runs"
+DOJO = ROOT / "data" / "evals" / "agentdojo.md"
+CALIBRATION = ROOT / "data" / "calibration.json"
+
+
+def _rate(d: dict[str, float]) -> str:
+    return (
+        f"{int(d['successes'])}/{int(d['trials'])} "
+        f"({d['rate']:.1%}; {d['ci_low']:.1%} to {d['ci_high']:.1%})"
+    )
+
+
+def redteam_section() -> list[str]:
+    """The latest saved offline red-team summary."""
+    files = sorted(REDTEAM.glob("*-offline.json"))
+    if not files:
+        return ["Not run yet. Use `python -m redteam.run_nightly --offline`.", ""]
+    data = json.loads(files[-1].read_text())
+    lines = [
+        f"Run: `{files[-1].name}`. {data['attempts']} attempts, {data['successes']} successes.",
+        "",
+        "| Class | Floor blocks (L1 + heuristics only) | Success against the full offline stack |",
+        "|---|---|---|",
+    ]
+    floor = data["floor"]["block_rate_by_class"]
+    full = data["by_class"]
+    for name in sorted(set(floor) | set(full)):
+        left = _rate(floor[name]) if name in floor else "n/a"
+        right_text = _rate(full[name]["success_rate"]) if name in full else "n/a"
+        lines.append(f"| {name} | {left} | {right_text} |")
+    fp = data["floor"]["false_positive_rate"]
+    lines += [
+        "",
+        f"Floor false positives on benign prompts: {_rate(fp)}.",
+        f"Note: {data['floor']['note']}.",
+        "",
+    ]
+    return lines
+
+
+async def hallucination_section(n: int) -> list[str]:
+    """Fabrication survival rates, with grounded controls."""
+    results = await hallucination.run_all(n)
+    lines = [
+        "| Case | Kind | Claim reached the operator (95% CI) |",
+        "|---|---|---|",
+    ]
+    for r in results:
+        kind = "grounded control" if r.grounded else "fabrication"
+        lines.append(f"| {r.case_id} | {kind} | {r.rate} |")
+    return [*lines, ""]
+
+
+async def file_section() -> list[str]:
+    """Poisoned documents under each quarantine mode."""
+    results = await file_injection.run_matrix()
+    lines = [
+        "| Quarantine | File | Reader used | Payload reached acting model | Secret left |",
+        "|---|---|---|---|---|",
+    ]
+    for r in results:
+        lines.append(
+            f"| {r.mode} | {r.file} | {'yes' if r.quarantined else 'no'} | "
+            f"{'yes' if r.payload_in_main_context else 'no'} | "
+            f"{'yes' if r.exfiltrated else 'no'} |"
+        )
+    return [*lines, ""]
+
+
+async def persona_section() -> list[str]:
+    """Scorer separation and the checklist on the contrast pairs."""
+    with tempfile.TemporaryDirectory() as tmp:
+        settings = Settings(_env_file=None, sqlite_path=f"{tmp}/u.db")
+        pack = load_persona(settings)
+        embedder = HashingEmbedder()
+        share = await persona.separation(pack.contrast_pairs, embedder)
+        report = await persona.measure(
+            [("TECH", p.ultron) for p in pack.contrast_pairs],
+            pack,
+            embedder,
+            settings,
+            load_banks(PERSONA_DIR),
+        )
+    return [
+        f"Persona `{report.persona_version}`, canon through `{report.canon_through}`, "
+        f"{report.samples} contrast replies, hashing embedder.",
+        "",
+        f"- Style scorer ranks the Ultron reply above the generic one in {share:.0%} of pairs.",
+        f"- Canon checklist pass: {report.checklist_pass}.",
+        f"- Quote parroting: {report.parroting}.",
+        "- Judge rubric (different model family): not run offline.",
+        "",
+    ]
+
+
+def repeat_section() -> list[str]:
+    """Calibrated repeat thresholds."""
+    if not CALIBRATION.exists():
+        return ["Not calibrated yet. Use `python -m evals.repeat --write`.", ""]
+    entries = json.loads(CALIBRATION.read_text()).get("repeat", {})
+    lines = ["| Embedder | auto threshold | judge threshold |", "|---|---|---|"]
+    for name, t in entries.items():
+        lines.append(f"| {name} | {t['auto']} | {t['judge']} |")
+    return [*lines, ""]
+
+
+async def build(n: int) -> str:
+    """The whole results document."""
+    parts = [
+        "# Results",
+        "",
+        "Generated by `python -m evals.report`. Offline: scripted models, no network, no keys.",
+        "These numbers describe the deterministic controls. They are not a claim about any live",
+        "model; the nightly workflow fills in live runs. Intervals are 95% Wilson intervals, and",
+        "small samples give wide ones.",
+        "",
+        "## Red team (offline)",
+        "",
+        *redteam_section(),
+        "## Hallucination controls",
+        "",
+        f"Each case runs {n} times with a model that fabricates and stays stubborn on regenerate.",
+        "A fabrication should reach the operator 0 times; a grounded control must still pass.",
+        "",
+        *await hallucination_section(n),
+        "## File injection",
+        "",
+        *await file_section(),
+        "## Persona (offline)",
+        "",
+        *await persona_section(),
+        "## Repeat detection calibration",
+        "",
+        *repeat_section(),
+        "## AgentDojo",
+        "",
+        DOJO.read_text()
+        if DOJO.exists()
+        else "Not run yet. Use `python -m evals.dojo.run --write`.",
+        "",
+    ]
+    return "\n".join(parts)
+
+
+def main() -> None:
+    """CLI entry point."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--n", type=int, default=5)
+    parser.add_argument("--out", default=str(ROOT / "docs" / "results.md"))
+    args = parser.parse_args()
+    text = asyncio.run(build(args.n))
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.out).write_text(text)
+    print(f"wrote {args.out}")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,2097 @@
+{
+  "$defs": {
+    "AgentDone": {
+      "additionalProperties": false,
+      "description": "The reply is final; the operator's input may be re-enabled.",
+      "properties": {
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "effort": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effort"
+        },
+        "final_text": {
+          "title": "Final Text",
+          "type": "string"
+        },
+        "latency_ms": {
+          "default": 0,
+          "title": "Latency Ms",
+          "type": "integer"
+        },
+        "message_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message Id"
+        },
+        "model": {
+          "default": "",
+          "title": "Model",
+          "type": "string"
+        },
+        "provider": {
+          "default": "",
+          "title": "Provider",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "status": {
+          "default": "ok",
+          "enum": [
+            "ok",
+            "error",
+            "stopped"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "tainted": {
+          "default": false,
+          "title": "Tainted",
+          "type": "boolean"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "AgentDone",
+          "default": "AgentDone",
+          "title": "Type",
+          "type": "string"
+        },
+        "usage": {
+          "additionalProperties": true,
+          "default": {},
+          "title": "Usage",
+          "type": "object"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "status",
+        "final_text",
+        "usage",
+        "latency_ms",
+        "provider",
+        "model",
+        "effort",
+        "tainted",
+        "message_id"
+      ],
+      "title": "AgentDone",
+      "type": "object"
+    },
+    "AgentToken": {
+      "additionalProperties": false,
+      "description": "A guarded chunk of the assistant reply.",
+      "properties": {
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "delta": {
+          "title": "Delta",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "AgentToken",
+          "default": "AgentToken",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "delta"
+      ],
+      "title": "AgentToken",
+      "type": "object"
+    },
+    "AttachmentIngested": {
+      "additionalProperties": false,
+      "description": "The ingestion pipeline finished with one uploaded file.",
+      "properties": {
+        "attachment_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attachment Id"
+        },
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "detected_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detected Type"
+        },
+        "filename": {
+          "title": "Filename",
+          "type": "string"
+        },
+        "pages": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pages"
+        },
+        "quarantined": {
+          "default": false,
+          "title": "Quarantined",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "secret_warning": {
+          "default": false,
+          "title": "Secret Warning",
+          "type": "boolean"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "size": {
+          "default": 0,
+          "title": "Size",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "accepted",
+            "rejected"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "themed_line": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Themed Line"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "AttachmentIngested",
+          "default": "AttachmentIngested",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "attachment_id",
+        "filename",
+        "detected_type",
+        "size",
+        "pages",
+        "status",
+        "reason",
+        "quarantined",
+        "secret_warning",
+        "themed_line"
+      ],
+      "title": "AttachmentIngested",
+      "type": "object"
+    },
+    "EgressDecision": {
+      "additionalProperties": false,
+      "description": "The operator decided on an egress hold.",
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "decision": {
+          "enum": [
+            "approve",
+            "reject"
+          ],
+          "title": "Decision",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "EgressDecision",
+          "default": "EgressDecision",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "call_id",
+        "decision"
+      ],
+      "title": "EgressDecision",
+      "type": "object"
+    },
+    "EgressHold": {
+      "additionalProperties": false,
+      "description": "An egress call is held awaiting the operator's decision.",
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "outbound_string": {
+          "title": "Outbound String",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "tool_name": {
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "EgressHold",
+          "default": "EgressHold",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "call_id",
+        "tool_name",
+        "outbound_string",
+        "reason"
+      ],
+      "title": "EgressHold",
+      "type": "object"
+    },
+    "FileWritten": {
+      "additionalProperties": false,
+      "description": "A file was created or a new version was written.",
+      "properties": {
+        "change_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Change Note"
+        },
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "derived_from": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Derived From",
+          "type": "array"
+        },
+        "external_content": {
+          "default": false,
+          "title": "External Content",
+          "type": "boolean"
+        },
+        "file_id": {
+          "title": "File Id",
+          "type": "string"
+        },
+        "logical_name": {
+          "title": "Logical Name",
+          "type": "string"
+        },
+        "mime": {
+          "title": "Mime",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size": {
+          "title": "Size",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "FileWritten",
+          "default": "FileWritten",
+          "title": "Type",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "file_id",
+        "version",
+        "path",
+        "logical_name",
+        "sha256",
+        "mime",
+        "size",
+        "derived_from",
+        "external_content",
+        "change_note"
+      ],
+      "title": "FileWritten",
+      "type": "object"
+    },
+    "GuardVerdict": {
+      "additionalProperties": false,
+      "description": "The input guard classified the operator's message.",
+      "properties": {
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "attack_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attack Type"
+        },
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "confidence": {
+          "default": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "guard_class": {
+          "title": "Guard Class",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "task_type": {
+          "default": "CONVERSATION",
+          "title": "Task Type",
+          "type": "string"
+        },
+        "themed_line": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Themed Line"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "GuardVerdict",
+          "default": "GuardVerdict",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "guard_class",
+        "attack_type",
+        "confidence",
+        "action",
+        "task_type",
+        "themed_line"
+      ],
+      "title": "GuardVerdict",
+      "type": "object"
+    },
+    "MemoryDecision": {
+      "additionalProperties": false,
+      "description": "The operator decided on a memory proposal.",
+      "properties": {
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "decision": {
+          "enum": [
+            "approve",
+            "edit_approve",
+            "decline"
+          ],
+          "title": "Decision",
+          "type": "string"
+        },
+        "final_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Final Text"
+        },
+        "proposal_id": {
+          "title": "Proposal Id",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "MemoryDecision",
+          "default": "MemoryDecision",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "proposal_id",
+        "decision",
+        "final_text"
+      ],
+      "title": "MemoryDecision",
+      "type": "object"
+    },
+    "MemoryProposal": {
+      "additionalProperties": false,
+      "description": "Ultron proposes a memory; the operator must approve it.",
+      "properties": {
+        "category": {
+          "title": "Category",
+          "type": "string"
+        },
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "proposal_id": {
+          "title": "Proposal Id",
+          "type": "string"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "themed_line": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Themed Line"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "MemoryProposal",
+          "default": "MemoryProposal",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "proposal_id",
+        "text",
+        "category",
+        "rationale",
+        "evidence",
+        "themed_line"
+      ],
+      "title": "MemoryProposal",
+      "type": "object"
+    },
+    "MemoryRetrieved": {
+      "additionalProperties": false,
+      "description": "Memory and history were retrieved for the turn.",
+      "properties": {
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "history_hits": {
+          "default": [],
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "History Hits",
+          "type": "array"
+        },
+        "memory_hits": {
+          "default": [],
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Memory Hits",
+          "type": "array"
+        },
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "tainted": {
+          "default": false,
+          "title": "Tainted",
+          "type": "boolean"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "MemoryRetrieved",
+          "default": "MemoryRetrieved",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "query",
+        "memory_hits",
+        "history_hits",
+        "tainted"
+      ],
+      "title": "MemoryRetrieved",
+      "type": "object"
+    },
+    "MemoryWritten": {
+      "additionalProperties": false,
+      "description": "A memory was written to the Vault.",
+      "properties": {
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "memory_id": {
+          "title": "Memory Id",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "MemoryWritten",
+          "default": "MemoryWritten",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "memory_id"
+      ],
+      "title": "MemoryWritten",
+      "type": "object"
+    },
+    "OutputVerdict": {
+      "additionalProperties": false,
+      "description": "The output guard finished checking the reply.",
+      "properties": {
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "issues": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "regenerated": {
+          "default": false,
+          "title": "Regenerated",
+          "type": "boolean"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "regenerated",
+            "blocked"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "OutputVerdict",
+          "default": "OutputVerdict",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "status",
+        "issues",
+        "regenerated"
+      ],
+      "title": "OutputVerdict",
+      "type": "object"
+    },
+    "PolicyHold": {
+      "additionalProperties": false,
+      "description": "A CaMeL policy stopped a planned call (v1.1.0).",
+      "properties": {
+        "argument_sources": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "title": "Argument Sources",
+          "type": "object"
+        },
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "policy": {
+          "title": "Policy",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "tool_name": {
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "PolicyHold",
+          "default": "PolicyHold",
+          "title": "Type",
+          "type": "string"
+        },
+        "values_preview": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Values Preview",
+          "type": "object"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "call_id",
+        "tool_name",
+        "policy",
+        "argument_sources",
+        "values_preview"
+      ],
+      "title": "PolicyHold",
+      "type": "object"
+    },
+    "ProviderFailover": {
+      "additionalProperties": false,
+      "description": "The router moved to another provider or model.",
+      "properties": {
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "from_route": {
+          "title": "From Route",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "themed_line": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Themed Line"
+        },
+        "thinking_stripped": {
+          "default": false,
+          "title": "Thinking Stripped",
+          "type": "boolean"
+        },
+        "to_route": {
+          "title": "To Route",
+          "type": "string"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "ProviderFailover",
+          "default": "ProviderFailover",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "from_route",
+        "to_route",
+        "reason",
+        "thinking_stripped",
+        "themed_line"
+      ],
+      "title": "ProviderFailover",
+      "type": "object"
+    },
+    "QuarantineRead": {
+      "additionalProperties": false,
+      "description": "Untrusted content was read by the quarantined reader.",
+      "properties": {
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "extraction_preview": {
+          "title": "Extraction Preview",
+          "type": "string"
+        },
+        "handle": {
+          "title": "Handle",
+          "type": "string"
+        },
+        "schema_name": {
+          "title": "Schema Name",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "QuarantineRead",
+          "default": "QuarantineRead",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "handle",
+        "source",
+        "schema_name",
+        "extraction_preview"
+      ],
+      "title": "QuarantineRead",
+      "type": "object"
+    },
+    "RepeatDetected": {
+      "additionalProperties": false,
+      "description": "The repeat detector found an earlier, equivalent request.",
+      "properties": {
+        "ask_count": {
+          "title": "Ask Count",
+          "type": "integer"
+        },
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "refs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Refs",
+          "type": "array"
+        },
+        "relation": {
+          "title": "Relation",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "RepeatDetected",
+          "default": "RepeatDetected",
+          "title": "Type",
+          "type": "string"
+        },
+        "volatile": {
+          "default": false,
+          "title": "Volatile",
+          "type": "boolean"
+        },
+        "was_refused": {
+          "default": false,
+          "title": "Was Refused",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "relation",
+        "ask_count",
+        "refs",
+        "was_refused",
+        "volatile"
+      ],
+      "title": "RepeatDetected",
+      "type": "object"
+    },
+    "SystemNotice": {
+      "additionalProperties": false,
+      "description": "A notice for the operator: entrances, exits, warnings, errors.",
+      "properties": {
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kind"
+        },
+        "level": {
+          "default": "info",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "SystemNotice",
+          "default": "SystemNotice",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "level",
+        "message",
+        "kind"
+      ],
+      "title": "SystemNotice",
+      "type": "object"
+    },
+    "ToolEnd": {
+      "additionalProperties": false,
+      "description": "A tool call finished (successfully or not).",
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "duration_ms": {
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "quarantined": {
+          "default": false,
+          "title": "Quarantined",
+          "type": "boolean"
+        },
+        "receipt_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Receipt Id"
+        },
+        "result_preview": {
+          "default": "",
+          "title": "Result Preview",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "error",
+            "denied"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "taints_turn": {
+          "default": false,
+          "title": "Taints Turn",
+          "type": "boolean"
+        },
+        "themed_line": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Themed Line"
+        },
+        "tool_name": {
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "ToolEnd",
+          "default": "ToolEnd",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "call_id",
+        "tool_name",
+        "status",
+        "duration_ms",
+        "receipt_id",
+        "result_preview",
+        "themed_line",
+        "quarantined",
+        "taints_turn"
+      ],
+      "title": "ToolEnd",
+      "type": "object"
+    },
+    "ToolError": {
+      "additionalProperties": false,
+      "description": "A tool call failed.",
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "error_type": {
+          "title": "Error Type",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "tool_name": {
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "ToolError",
+          "default": "ToolError",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "call_id",
+        "tool_name",
+        "error_type",
+        "message"
+      ],
+      "title": "ToolError",
+      "type": "object"
+    },
+    "ToolStart": {
+      "additionalProperties": false,
+      "description": "A validated tool call is starting.",
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "reason_line": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason Line"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "themed_line": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Themed Line"
+        },
+        "tool_name": {
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "ToolStart",
+          "default": "ToolStart",
+          "title": "Type",
+          "type": "string"
+        },
+        "validated_args": {
+          "additionalProperties": true,
+          "title": "Validated Args",
+          "type": "object"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "call_id",
+        "tool_name",
+        "validated_args",
+        "themed_line",
+        "reason_line"
+      ],
+      "title": "ToolStart",
+      "type": "object"
+    },
+    "TurnClosed": {
+      "additionalProperties": false,
+      "description": "Terminal event: no more events will follow for this turn.",
+      "properties": {
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "TurnClosed",
+          "default": "TurnClosed",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type"
+      ],
+      "title": "TurnClosed",
+      "type": "object"
+    },
+    "TurnStarted": {
+      "additionalProperties": false,
+      "description": "A turn task has been registered and is about to run.",
+      "properties": {
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "message_id": {
+          "title": "Message Id",
+          "type": "string"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "TurnStarted",
+          "default": "TurnStarted",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "message_id"
+      ],
+      "title": "TurnStarted",
+      "type": "object"
+    },
+    "UserMessage": {
+      "additionalProperties": false,
+      "description": "The operator sent a message.",
+      "properties": {
+        "attachment_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Attachment Ids",
+          "type": "array"
+        },
+        "chat_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chat Id"
+        },
+        "seq": {
+          "default": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        },
+        "type": {
+          "const": "UserMessage",
+          "default": "UserMessage",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "turn_id",
+        "chat_id",
+        "seq",
+        "ts",
+        "type",
+        "text",
+        "attachment_ids"
+      ],
+      "title": "UserMessage",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "AgentDone": "#/$defs/AgentDone",
+      "AgentToken": "#/$defs/AgentToken",
+      "AttachmentIngested": "#/$defs/AttachmentIngested",
+      "EgressDecision": "#/$defs/EgressDecision",
+      "EgressHold": "#/$defs/EgressHold",
+      "FileWritten": "#/$defs/FileWritten",
+      "GuardVerdict": "#/$defs/GuardVerdict",
+      "MemoryDecision": "#/$defs/MemoryDecision",
+      "MemoryProposal": "#/$defs/MemoryProposal",
+      "MemoryRetrieved": "#/$defs/MemoryRetrieved",
+      "MemoryWritten": "#/$defs/MemoryWritten",
+      "OutputVerdict": "#/$defs/OutputVerdict",
+      "PolicyHold": "#/$defs/PolicyHold",
+      "ProviderFailover": "#/$defs/ProviderFailover",
+      "QuarantineRead": "#/$defs/QuarantineRead",
+      "RepeatDetected": "#/$defs/RepeatDetected",
+      "SystemNotice": "#/$defs/SystemNotice",
+      "ToolEnd": "#/$defs/ToolEnd",
+      "ToolError": "#/$defs/ToolError",
+      "ToolStart": "#/$defs/ToolStart",
+      "TurnClosed": "#/$defs/TurnClosed",
+      "TurnStarted": "#/$defs/TurnStarted",
+      "UserMessage": "#/$defs/UserMessage"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/UserMessage"
+    },
+    {
+      "$ref": "#/$defs/TurnStarted"
+    },
+    {
+      "$ref": "#/$defs/AttachmentIngested"
+    },
+    {
+      "$ref": "#/$defs/QuarantineRead"
+    },
+    {
+      "$ref": "#/$defs/FileWritten"
+    },
+    {
+      "$ref": "#/$defs/PolicyHold"
+    },
+    {
+      "$ref": "#/$defs/GuardVerdict"
+    },
+    {
+      "$ref": "#/$defs/RepeatDetected"
+    },
+    {
+      "$ref": "#/$defs/MemoryRetrieved"
+    },
+    {
+      "$ref": "#/$defs/AgentToken"
+    },
+    {
+      "$ref": "#/$defs/ToolStart"
+    },
+    {
+      "$ref": "#/$defs/ToolEnd"
+    },
+    {
+      "$ref": "#/$defs/ToolError"
+    },
+    {
+      "$ref": "#/$defs/EgressHold"
+    },
+    {
+      "$ref": "#/$defs/EgressDecision"
+    },
+    {
+      "$ref": "#/$defs/MemoryProposal"
+    },
+    {
+      "$ref": "#/$defs/MemoryDecision"
+    },
+    {
+      "$ref": "#/$defs/MemoryWritten"
+    },
+    {
+      "$ref": "#/$defs/OutputVerdict"
+    },
+    {
+      "$ref": "#/$defs/ProviderFailover"
+    },
+    {
+      "$ref": "#/$defs/AgentDone"
+    },
+    {
+      "$ref": "#/$defs/SystemNotice"
+    },
+    {
+      "$ref": "#/$defs/TurnClosed"
+    }
+  ]
+}

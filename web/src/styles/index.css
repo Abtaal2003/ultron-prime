@@ -1,0 +1,63 @@
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/jetbrains-mono/latin-700.css";
+@import "@fontsource/orbitron/latin-600.css";
+@import "./theme.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { font-size: calc(16px * var(--font-scale)); background: rgb(var(--bg)); color-scheme: dark; }
+  body {
+    @apply bg-bg font-mono text-text antialiased;
+    margin: 0;
+    min-height: 100dvh;
+    overscroll-behavior: none;
+  }
+  #root { min-height: 100dvh; }
+  :focus-visible { outline: 2px solid rgb(var(--neon-red-soft)); outline-offset: 2px; }
+  input, textarea, select { font-size: 16px; } /* no zoom-on-focus on iOS */
+  button { @apply min-h-touch min-w-touch; }
+  ::selection { background: rgb(var(--deep-red)); color: rgb(var(--text)); }
+  a { @apply text-neon-soft underline underline-offset-2; }
+}
+
+@layer components {
+  .panel { @apply rounded border border-panel-border bg-panel; }
+  .btn {
+    @apply inline-flex min-h-touch min-w-touch items-center justify-center gap-2 rounded border
+           border-deep bg-transparent px-3 py-2 text-sm text-text transition-colors
+           hover:border-neon hover:text-neon-soft disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-primary { @apply border-neon bg-deep/40 text-text; box-shadow: var(--glow); }
+  .btn-danger { @apply border-neon text-neon-soft; }
+  .field {
+    @apply min-h-touch w-full rounded border border-deep bg-bg px-3 py-2 text-text
+           placeholder:text-muted;
+  }
+  .label { @apply mb-1 block text-xs uppercase tracking-widest text-muted; }
+  .glow { text-shadow: 0 0 8px rgb(var(--neon-red) / 0.6); }
+  .scan::after {
+    content: ""; pointer-events: none; position: fixed; inset: 0; z-index: 50;
+    background: repeating-linear-gradient(to bottom, transparent 0 2px, rgb(0 0 0 / 0.18) 2px 3px);
+  }
+  .scroll-x { overflow-x: auto; max-width: 100%; }
+  .cursor::after {
+    content: "█"; margin-left: 2px; color: rgb(var(--neon-red));
+    animation: blink 1s steps(1) infinite;
+  }
+  .pulse { animation: pulse 2.4s ease-in-out infinite; text-shadow: 0 0 2px rgb(var(--neon-red) / 0.2); }
+}
+
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes pulse { 50% { text-shadow: 0 0 10px rgb(var(--neon-red) / 0.9); } }
+
+.md { overflow-wrap: anywhere; line-height: 1.6; }
+.md p { margin: 0 0 0.75em; }
+.md pre { @apply scroll-x rounded border border-panel-border bg-bg p-3 text-sm; }
+.md code { @apply rounded bg-bg px-1 text-neon-soft; }
+.md pre code { background: none; padding: 0; color: inherit; }
+.md table { @apply block scroll-x text-sm; border-collapse: collapse; }
+.md th, .md td { @apply border border-panel-border px-2 py-1; }
+.md ul, .md ol { padding-left: 1.4em; margin: 0 0 0.75em; }
+.md blockquote { @apply border-l-2 border-deep pl-3 text-muted; margin: 0 0 0.75em; }
