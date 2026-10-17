@@ -86,10 +86,24 @@ def _hook(event, args):
             if real == denied or real.startswith(denied + os.sep):
                 raise PermissionError("sandbox: that location is off limits")
 
+source = open("main.py", encoding="utf-8").read()
+if "matplotlib" in source or "pyplot" in source:
+    # Trusted warm-up before the hook goes in: building matplotlib's font cache can run helper
+    # programs (fontconfig) that the sandbox would otherwise refuse.
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import io
+        import matplotlib.pyplot as _plt
+        _fig = _plt.figure()
+        _fig.text(0.5, 0.5, "warm")
+        _fig.savefig(io.BytesIO(), format="png")
+        _plt.close(_fig)
+    except Exception:
+        pass
 sys.addaudithook(_hook)
 sys.argv = ["main.py"]
 sys.path.insert(0, os.getcwd())
-source = open("main.py", encoding="utf-8").read()
 code = compile(source, "main.py", "exec")
 try:
     exec(code, {"__name__": "__main__", "__file__": "main.py"})
