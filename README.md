@@ -1,12 +1,6 @@
 <div align="center">
 
-```text
- _   _ _   _____ ____   ___  _   _   ____  ____  ___ __  __ _____
-| | | | | |_   _|  _ \ / _ \| \ | | |  _ \|  _ \|_ _|  \/  | ____|
-| | | | |   | | | |_) | | | |  \| | | |_) | |_) || || |\/| |  _|
-| |_| | |___| | |  _ <| |_| | |\  | |  __/|  _ < | || |  | | |___
- \___/|_____|_| |_| \_\\___/|_| \_| |_|   |_| \_\___|_|  |_|_____|
-```
+<img src="assets/banner.svg" alt="Ultron Prime: guarded, accountable, measured" width="100%">
 
 ### An agent that assumes it can be fooled, and is built so that it does not matter.
 
