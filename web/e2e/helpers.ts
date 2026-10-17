@@ -6,6 +6,8 @@ export async function login(page: Page): Promise<void> {
   await page.goto("/");
   await page.getByLabel("Operator passphrase").fill(PASSPHRASE);
   await page.getByRole("button", { name: "Enter" }).click();
+  // The login screen has the same heading, so wait for the form to go instead of the title.
+  await expect(page.getByLabel("Operator passphrase")).toBeHidden();
   await expect(page.getByRole("heading", { name: /ULTRON PRIME/ })).toBeVisible();
 }
 
