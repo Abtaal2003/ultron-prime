@@ -30,6 +30,7 @@ anyio==4.15.1
     #   httpx
     #   httpx2
     #   langsmith
+    #   sse-starlette
     #   starlette
     #   watchfiles
 argon2-cffi==25.1.0
@@ -488,8 +489,12 @@ sortedcontainers==2.4.0
     #   hypothesis
 sqlite-vec==0.1.9
     # via langgraph-checkpoint-sqlite
+sse-starlette==3.5.0
+    # via ultron-prime
 starlette==1.8.0
-    # via fastapi
+    # via
+    #   fastapi
+    #   sse-starlette
 structlog==26.1.0
     # via ultron-prime
 tenacity==9.1.4
