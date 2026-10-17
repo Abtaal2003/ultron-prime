@@ -17,7 +17,13 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy
-      - run: uv run pytest --cov
+      - name: Tests
+        run: |
+          set -o pipefail
+          uv run pytest --cov 2>&1 | tee pytest.log
+      - name: Surface test failures as annotations
+        if: failure()
+        run: grep -E "^(FAILED|ERROR)|Error|assert " pytest.log | head -25 | while IFS= read -r l; do echo "::error::${l:0:300}"; done
       - name: Offline evals report
         run: uv run python -m evals.report --out /tmp/results.md
       - name: Dependency audit
@@ -63,10 +69,15 @@ jobs:
         working-directory: web
       - run: npx playwright install --with-deps chromium
         working-directory: web
-      - run: npx playwright test
+      - name: End to end
+        run: |
+          set -o pipefail
+          npx playwright test 2>&1 | tee e2e.log
         working-directory: web
-        env:
-          ULTRON_PYTHON: ${{ github.workspace }}/.venv/bin/python
+      - name: Surface e2e failures as annotations
+        if: failure()
+        run: grep -E "✘|Error|Timeout|expect" e2e.log | head -25 | while IFS= read -r l; do echo "::error::${l:0:300}"; done
+        working-directory: web
       - name: npm audit
         run: npm audit --omit=dev --audit-level=high
         working-directory: web

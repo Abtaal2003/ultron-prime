@@ -1,8 +1,11 @@
+import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 
 const PORTS = [8788, 8789];
-const executablePath = process.env.PW_CHROMIUM ?? "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-const launchOptions = { executablePath, args: ["--no-sandbox"] };
+// Locally, point PW_CHROMIUM at a Chromium binary (needed in sandboxed containers). In CI the
+// browser installed by `playwright install` is used.
+const local = process.env.PW_CHROMIUM ?? "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+const launchOptions = existsSync(local) ? { executablePath: local, args: ["--no-sandbox"] } : {};
 
 export default defineConfig({
   testDir: "./e2e",
