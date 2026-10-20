@@ -34,6 +34,11 @@ export function Header({ conn, onMenu, onStatus }: { conn: StreamState | "idle";
           </span>
           <span>vault {s.vault_count}</span>
           <span>guard {s.guard.status === "ok" ? "ok" : "heuristic"}</span>
+          {s.budget && s.budget.daily_usd > 0 && (
+            <span className={s.budget.spent_today_usd >= s.budget.daily_usd ? "text-neon-soft" : undefined}>
+              spend ${s.budget.spent_today_usd.toFixed(2)} / ${s.budget.daily_usd.toFixed(2)}
+            </span>
+          )}
           {s.remote && <span className="text-neon-soft">remote</span>}
           {s.strict && <span className="text-neon-soft">strict</span>}
         </p>

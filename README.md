@@ -8,7 +8,7 @@
 ![python](https://img.shields.io/badge/python-3.11%2B-b11226?style=flat-square&labelColor=0d1117)
 ![react](https://img.shields.io/badge/react-18-b11226?style=flat-square&labelColor=0d1117)
 ![mypy](https://img.shields.io/badge/mypy-strict-b11226?style=flat-square&labelColor=0d1117)
-![tests](https://img.shields.io/badge/tests-822%20passing-b11226?style=flat-square&labelColor=0d1117)
+![tests](https://img.shields.io/badge/tests-835%20passing-b11226?style=flat-square&labelColor=0d1117)
 ![coverage](https://img.shields.io/badge/coverage-91%25-b11226?style=flat-square&labelColor=0d1117)
 ![license](https://img.shields.io/badge/license-MIT-b11226?style=flat-square&labelColor=0d1117)
 
@@ -214,6 +214,11 @@ calls, web searches and network diagnostics leave it.
   `ALLOWED_HOSTS` and `ALLOWED_ORIGINS`. Never expose it to the public internet.
 * **Repeat detection:** after installing a real embedding model, run
   `uv run python -m evals.repeat --write` once to calibrate its thresholds.
+* **Spending cap:** set `DAILY_BUDGET_USD` and your providers' prices in
+  `MODEL_PRICES_USD_PER_MTOK`. The header shows today's estimate, and new turns are refused once
+  it is reached. It is an estimate from logged tokens, not your provider's bill.
+* **Tracing:** `uv sync --extra otel`, then set `OTEL_ENABLED=true` and `OTEL_EXPORTER_ENDPOINT`
+  to send one trace per turn to Jaeger, Grafana Tempo or any OTLP collector.
 * **Configuration** is environment variables only. `.env` is gitignored, and `.env.example`
   lists every setting with blank keys.
 
@@ -243,11 +248,12 @@ Full signatures and limits: [docs/tool-reference.md](docs/tool-reference.md).
 | Models | Anthropic, Groq and Gemini behind one interface, with role routing and fallback |
 | Frontend | React 18, TypeScript (strict), Vite, Tailwind, TanStack Query, installable PWA |
 | Quality | ruff, mypy strict, pytest (91% coverage), Vitest, Playwright with axe, GitHub Actions |
+| Operations | Structured logs, optional OpenTelemetry tracing, an optional daily spending cap |
 | Evals | AgentDojo, an offline and nightly red team, hallucination, persona and file-injection suites |
 
 ## Project status
 
-**Verified offline, and in CI on every push:** 822 backend tests, strict typing, 32 browser tests
+**Verified offline, and in CI on every push:** 835 backend tests, strict typing, 32 browser tests
 on desktop and phone profiles including accessibility, a dependency audit and a secret scan. The
 nightly red-team workflow runs on schedule with the offline corpus.
 

@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from src.core import tracing
 from src.core.db import Database, new_id
 from src.core.errors import (
     NotFound,
@@ -201,6 +202,22 @@ class Tool(ABC):
     # -- the error boundary --------------------------------------------------------------------
     async def execute(self, raw_args: dict[str, Any], ctx: ToolContext) -> ToolResult:
         """Validate, run, and wrap the call. Never raises except ``CancelledError``."""
+        attrs = {
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": self.name,
+            "gen_ai.tool.call.id": ctx.call_id,
+            "ultron.turn_id": ctx.turn_id,
+        }
+        with tracing.span(f"execute_tool {self.name}", attrs) as current:
+            result = await self._execute(raw_args, ctx)
+            current.set_attribute("ultron.ok", result.ok)
+            current.set_attribute("ultron.taints_turn", result.taints_turn)
+            current.set_attribute("ultron.quarantine", result.quarantine)
+            if result.error is not None:
+                current.set_attribute("error.type", result.error.kind)
+            return result
+
+    async def _execute(self, raw_args: dict[str, Any], ctx: ToolContext) -> ToolResult:
         started = time.perf_counter()
         ok = False
         data: dict[str, Any] | None = None

@@ -17,6 +17,7 @@ from functools import partial
 from typing import Any
 
 from src.config import RouteSpec, Settings, parse_route
+from src.core import tracing
 from src.core.db import Database, new_id
 from src.core.errors import (
     ConfigurationError,
@@ -40,6 +41,7 @@ from src.core.llm.base import (
     images_as_text,
     strip_thinking,
 )
+from src.core.llm.budget import Budget
 from src.core.persona.lines import THEMED
 from src.logging_setup import get_logger
 
@@ -90,6 +92,7 @@ class LLMRouter:
         self.providers = providers
         self.db = db
         self._sleep = sleep
+        self.budget = Budget(settings, db)
 
     # ---------------------------------------------------------------------------- config --
     def route_for(self, role: str) -> RouteSpec:
@@ -281,11 +284,34 @@ class LLMRouter:
             detail=f"configured providers: {', '.join(have) or 'none'}",
         )
 
+    @staticmethod
+    def _span_attrs(role: str, route: RouteSpec, ctx: CallContext) -> dict[str, Any]:
+        return {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": route.provider,
+            "gen_ai.request.model": route.model,
+            "ultron.role": role,
+            "ultron.turn_id": ctx.turn_id,
+        }
+
+    @staticmethod
+    def _span_usage(current: tracing.SpanLike, usage: Usage, model: str | None) -> None:
+        current.set_attribute("gen_ai.usage.input_tokens", usage.input_tokens)
+        current.set_attribute("gen_ai.usage.output_tokens", usage.output_tokens)
+        if model:
+            current.set_attribute("gen_ai.response.model", model)
+
+    @staticmethod
+    def _span_error(current: tracing.SpanLike, exc: BaseException) -> None:
+        current.set_attribute("error.type", type(exc).__name__)
+        current.record_exception(exc)
+
     async def chat(
         self, role: str, request: ChatRequest, ctx: CallContext | None = None
     ) -> ChatResponse:
         """Complete ``request`` using ``role``'s route, falling back along the chain."""
         ctx = ctx or CallContext()
+        await self.budget.check()
         candidates = self._candidates(role, request, structured=False)
         if not candidates:
             raise self._no_route(role)
@@ -298,13 +324,16 @@ class LLMRouter:
                     ctx, previous, str(route), last.message if last else "", foreign
                 )
             started = time.perf_counter()
-            try:
-                response: ChatResponse = await self._with_retries(
-                    partial(provider.chat, prepared), str(route)
-                )
-            except ProviderError as exc:
-                last, previous = exc, str(route)
-                continue
+            with tracing.span(f"chat {route.model}", self._span_attrs(role, route, ctx)) as sp:
+                try:
+                    response: ChatResponse = await self._with_retries(
+                        partial(provider.chat, prepared), str(route)
+                    )
+                except ProviderError as exc:
+                    self._span_error(sp, exc)
+                    last, previous = exc, str(route)
+                    continue
+                self._span_usage(sp, response.usage, response.model)
             await self._log_usage(ctx, role, route.provider, route.model, response.usage, started)
             return response
         raise ProviderUnavailable(
@@ -316,6 +345,7 @@ class LLMRouter:
     ) -> AsyncIterator[StreamChunk]:
         """Stream a reply. Failover happens only before the first chunk is delivered."""
         ctx = ctx or CallContext()
+        await self.budget.check()
         candidates = self._candidates(role, request, structured=False)
         if not candidates:
             raise self._no_route(role)
@@ -333,18 +363,22 @@ class LLMRouter:
             delay = self.settings.llm_backoff_base_s
             for attempt in range(attempts):
                 try:
-                    async for chunk in provider.stream(prepared):
-                        delivered = True
-                        if chunk.kind == "done" and chunk.response is not None:
-                            await self._log_usage(
-                                ctx,
-                                role,
-                                route.provider,
-                                route.model,
-                                chunk.response.usage,
-                                started,
-                            )
-                        yield chunk
+                    with tracing.detached_span(
+                        f"chat {route.model}", self._span_attrs(role, route, ctx)
+                    ) as sp:
+                        async for chunk in provider.stream(prepared):
+                            delivered = True
+                            if chunk.kind == "done" and chunk.response is not None:
+                                self._span_usage(sp, chunk.response.usage, chunk.response.model)
+                                await self._log_usage(
+                                    ctx,
+                                    role,
+                                    route.provider,
+                                    route.model,
+                                    chunk.response.usage,
+                                    started,
+                                )
+                            yield chunk
                     return
                 except ProviderError as exc:
                     last = exc
@@ -369,6 +403,7 @@ class LLMRouter:
     ) -> T:
         """Return a validated ``schema`` instance. Invalid output from one route tries the next."""
         ctx = ctx or CallContext()
+        await self.budget.check()
         candidates = self._candidates(role, request, structured=True)
         if not candidates:
             raise self._no_route(role)
@@ -379,13 +414,16 @@ class LLMRouter:
             if previous:
                 await self._announce(ctx, previous, str(route), str(last), foreign)
             started = time.perf_counter()
-            try:
-                value, usage = await self._with_retries(
-                    partial(provider.structured, prepared, schema), str(route)
-                )
-            except (ProviderError, StructuredOutputError) as exc:
-                last, previous = exc, str(route)
-                continue
+            with tracing.span(f"chat {route.model}", self._span_attrs(role, route, ctx)) as sp:
+                try:
+                    value, usage = await self._with_retries(
+                        partial(provider.structured, prepared, schema), str(route)
+                    )
+                except (ProviderError, StructuredOutputError) as exc:
+                    self._span_error(sp, exc)
+                    last, previous = exc, str(route)
+                    continue
+                self._span_usage(sp, usage, route.model)
             await self._log_usage(ctx, role, route.provider, route.model, usage, started)
             return value  # type: ignore[no-any-return]
         if isinstance(last, StructuredOutputError):

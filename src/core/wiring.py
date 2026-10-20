@@ -14,6 +14,7 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from src.config import Settings
+from src.core import tracing
 from src.core.agent import GuardSuite, UltronAgent
 from src.core.db import Database, SqliteTurnEventSink
 from src.core.events import EventBus
@@ -91,6 +92,7 @@ class Runtime:
         for closer in self._closers:
             await closer()
         await self.db.close()
+        tracing.shutdown_tracing()
 
 
 async def build_runtime(
@@ -105,6 +107,8 @@ async def build_runtime(
     """Create and connect every component."""
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.workspace_dir.mkdir(parents=True, exist_ok=True)
+    if settings.otel_enabled and not tracing.enabled():
+        tracing.setup_tracing(settings)
     db = Database(settings.sqlite_file)
     await db.connect()
     closers: list[Any] = []

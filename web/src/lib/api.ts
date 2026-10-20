@@ -202,6 +202,7 @@ export interface StatusView {
   access_mode: string;
   strict: boolean;
   host: Record<string, Record<string, number | string> | number> | null;
+  budget?: { daily_usd: number; spent_today_usd: number };
 }
 export interface SafetyView {
   decisions: Record<string, string | number | null>[];

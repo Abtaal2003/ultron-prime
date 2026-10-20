@@ -187,6 +187,10 @@ async def status(session: Authed, state: State) -> dict[str, Any]:
         "access_mode": state.settings.access_mode,
         "strict": state.settings.quarantine_mode == "strict",
         "host": host,
+        "budget": {
+            "daily_usd": state.settings.daily_budget_usd,
+            "spent_today_usd": round(await runtime.router.budget.spent_today(), 4),
+        },
     }
 
 

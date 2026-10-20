@@ -43,6 +43,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, RetryPolicy, interrupt
 
 from src.config import Settings
+from src.core import tracing
 from src.core.camel.bridge import CamelBridge
 from src.core.db import new_id, to_json
 from src.core.errors import (
@@ -101,6 +102,7 @@ from src.core.llm.base import (
     ToolUsePart,
     Usage,
 )
+from src.core.llm.budget import BudgetExceeded
 from src.core.llm.router import CallContext, LLMRouter
 from src.core.memory.window import WindowBuilder, merge_alternating
 from src.core.persona.anchors import AnchorIndex
@@ -236,6 +238,7 @@ class UltronAgent:
             raise NotFound("chat not found")
         if not user_text.strip() and not attachment_ids:
             raise PolicyDenied("an empty message cannot start a turn")
+        await self.router.budget.check()
         turn_id = new_id("turn")
         message_id = await self.history.add_message(
             chat_id, "user", user_text, turn_id=turn_id, attachments=list(attachment_ids or [])
@@ -389,6 +392,20 @@ class UltronAgent:
     # ------------------------------------------------------------------------- the run ---
 
     async def _run(self, turn: Turn) -> None:
+        attrs = {
+            "ultron.chat_id": turn.chat_id,
+            "ultron.turn_id": turn.turn_id,
+            "ultron.remote": turn.is_remote,
+            "ultron.attachments": len(turn.attachment_ids),
+            "ultron.operator_text": tracing.content(turn.user_text),
+        }
+        with tracing.span("ultron.turn", attrs) as current:
+            await self._run_graph(turn)
+            current.set_attribute("ultron.tainted", turn.gate.tainted)
+            current.set_attribute("ultron.tool_calls", turn.gate.tool_calls)
+            current.set_attribute("ultron.egress_holds", turn.gate.egress_holds)
+
+    async def _run_graph(self, turn: Turn) -> None:
         config = {"configurable": {"thread_id": turn.chat_id}}
         try:
             await self._emit(turn, TurnStarted(message_id=turn.user_message_id))
@@ -413,6 +430,9 @@ class UltronAgent:
                 graph_input = Command(resume=await self._await_decision(turn))
         except asyncio.CancelledError:
             await self._finish(turn, "stopped")
+        except BudgetExceeded as exc:
+            log.warning("turn_budget_exceeded", turn_id=turn.turn_id, detail=exc.detail)
+            await self._finish(turn, "error", self.lines.line("budget_exceeded"))
         except Exception as exc:
             log.exception("turn_failed", turn_id=turn.turn_id)
             kind = "unavailable" if isinstance(exc, ProviderError) else "internal"
@@ -485,25 +505,42 @@ class UltronAgent:
     def _build_graph(self, checkpointer: BaseCheckpointSaver[Any]) -> Any:
         g: StateGraph[TurnState, None, TurnState, TurnState] = StateGraph(TurnState)
         retry = RetryPolicy(max_attempts=2, retry_on=(ProviderError,))
-        g.add_node("ingest_attachments", self.n_ingest_attachments)
-        g.add_node("guard_input", self.n_guard_input, timeout=self.settings.guard_timeout_s * 3)
-        g.add_node("detect_repeat", self.n_detect_repeat)
-        g.add_node("refuse_turn", self.n_refuse_turn)
-        g.add_node("retrieve_context", self.n_retrieve_context)
-        g.add_node("camel_run", self.n_camel_run)
+        g.add_node(
+            "ingest_attachments",
+            tracing.traced_node("ingest_attachments", self.n_ingest_attachments),
+        )
+        g.add_node(
+            "guard_input",
+            tracing.traced_node("guard_input", self.n_guard_input),
+            timeout=self.settings.guard_timeout_s * 3,
+        )
+        g.add_node("detect_repeat", tracing.traced_node("detect_repeat", self.n_detect_repeat))
+        g.add_node("refuse_turn", tracing.traced_node("refuse_turn", self.n_refuse_turn))
+        g.add_node(
+            "retrieve_context", tracing.traced_node("retrieve_context", self.n_retrieve_context)
+        )
+        g.add_node("camel_run", tracing.traced_node("camel_run", self.n_camel_run))
         g.add_node(
             "llm_decide",
-            self.n_llm_decide,
+            tracing.traced_node("llm_decide", self.n_llm_decide),
             retry_policy=retry,
             timeout=self.settings.llm_decide_timeout_s * 2,
         )
-        g.add_node("tool_gate", self.n_tool_gate)
-        g.add_node("egress_wait", self.n_egress_wait)
-        g.add_node("tool_executor", self.n_tool_executor)
-        g.add_node("quarantine_read", self.n_quarantine_read)
-        g.add_node("guard_output", self.n_guard_output, retry_policy=retry)
-        g.add_node("persist_turn", self.n_persist_turn)
-        g.add_node("evaluate_memory", self.n_evaluate_memory)
+        g.add_node("tool_gate", tracing.traced_node("tool_gate", self.n_tool_gate))
+        g.add_node("egress_wait", tracing.traced_node("egress_wait", self.n_egress_wait))
+        g.add_node("tool_executor", tracing.traced_node("tool_executor", self.n_tool_executor))
+        g.add_node(
+            "quarantine_read", tracing.traced_node("quarantine_read", self.n_quarantine_read)
+        )
+        g.add_node(
+            "guard_output",
+            tracing.traced_node("guard_output", self.n_guard_output),
+            retry_policy=retry,
+        )
+        g.add_node("persist_turn", tracing.traced_node("persist_turn", self.n_persist_turn))
+        g.add_node(
+            "evaluate_memory", tracing.traced_node("evaluate_memory", self.n_evaluate_memory)
+        )
 
         g.add_edge(START, "ingest_attachments")
         g.add_edge("ingest_attachments", "guard_input")
@@ -949,6 +986,15 @@ class UltronAgent:
             call = pending.call
             decision = self.gate.check(turn.gate, call.name, call.arguments, call.id)
             pending.decision = decision
+            tracing.current_event(
+                "ultron.gate.decision",
+                {
+                    "gen_ai.tool.name": call.name,
+                    "ultron.action": decision.action,
+                    "ultron.policy": decision.policy,
+                    "ultron.tainted": turn.gate.tainted,
+                },
+            )
             if decision.action == "allow":
                 turn.ready.append(pending)
             elif decision.action == "hold":

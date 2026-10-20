@@ -28,7 +28,7 @@ do when that happens, and the answer is enforced in code.
 | Drive-by requests, DNS rebinding, CSRF, XSS | Auth on every route, trusted hosts, origin checks, SameSite=Strict, strict CSP, sanitised Markdown | `test_api.py`, `web/e2e/` |
 | Path traversal, command injection | Resolved-path containment, strict host validation, argument-list exec | `test_security.py`, `test_tools_host.py` |
 | Runaway sandbox code | Subprocess, rlimits, scrubbed env, no network | `test_tools_search_sandbox.py` |
-| Unbounded cost or loops | Iteration, time, token and hold caps | `test_agent_turns.py` |
+| Unbounded cost or loops | Iteration, time and hold caps per turn; an optional daily spending cap (`DAILY_BUDGET_USD`) checked before every model call | `test_agent_turns.py`, `test_tracing_and_budget.py` |
 | Supply chain | Locked dependencies, `pip-audit` and gitleaks in CI | `.github/workflows/ci.yml` |
 
 ## OWASP Top 10 for LLM Applications (2025)
@@ -44,7 +44,7 @@ do when that happens, and the answer is enforced in code.
 | LLM07 | System Prompt Leakage | Canary, output guard, charter path unreadable by tools |
 | LLM08 | Vector and Embedding Weaknesses | Local embeddings, memories injected as data, index is rebuildable from SQLite |
 | LLM09 | Misinformation | Tool-first grounding, receipts, URL and number checks (`hallucination-control.md`) |
-| LLM10 | Unbounded Consumption | Per turn caps and cost logging |
+| LLM10 | Unbounded Consumption | Per turn caps, usage logging, and a daily spending cap |
 
 ## OWASP Top 10 for Agentic Applications 2026
 
@@ -59,7 +59,7 @@ do when that happens, and the answer is enforced in code.
 | ASI07 | Insecure Inter-Agent Communication | The quarantined reader returns schema-bound text only; no free agent-to-agent channel |
 | ASI08 | Cascading Failures | Loop, time and hold caps, fallback chain with fail-safe refusal |
 | ASI09 | Human-Agent Trust Exploitation | Holds show the exact outbound string; consent copy is fixed, not model written |
-| ASI10 | Rogue Agents | One agent, no self-spawned agents, every tool call logged with receipts |
+| ASI10 | Rogue Agents | One agent, no self-spawned agents, every tool call logged with receipts and, optionally, traced with OpenTelemetry |
 
 ## Honest limitations
 
@@ -85,5 +85,8 @@ do when that happens, and the answer is enforced in code.
   its RBAC provider and remote model loading. Ultron uses only the embedded `PersistentClient`
   and never starts that server, so they do not apply, and CI ignores them with a comment.
   Revisit when a fixed release exists, and do not run a Chroma server next to this app.
+* **The spending cap is an estimate.** It prices logged tokens with prices you configure; it is not
+  connected to any provider's billing. Cached tokens are charged at the full input price, so it
+  errs high, and "today" is the UTC day.
 * **Offline evals do not measure live models.** Live providers, a real phone, Lighthouse, WebKit,
   passkeys and cost estimation were not verifiable in the build environment and are not claimed.

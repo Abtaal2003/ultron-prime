@@ -218,6 +218,13 @@ class Settings(BaseSettings):
     log_format: Literal["json", "pretty"] = "pretty"
     otel_enabled: bool = False
     otel_capture_content: bool = False
+    otel_exporter_endpoint: str = ""
+
+    # --- Spending cap (7.4) -------------------------------------------------------------------
+    daily_budget_usd: float = Field(0.0, ge=0)
+    model_prices_usd_per_mtok: dict[str, tuple[float, float]] = Field(default_factory=dict)
+    default_usd_per_mtok_in: float = Field(3.0, ge=0)
+    default_usd_per_mtok_out: float = Field(15.0, ge=0)
 
     # ----------------------------------------------------------------------------------------
     @field_validator(

@@ -50,6 +50,10 @@ THEMED: dict[str, str] = {
     "egress_held": "I knock before leaving the house now. Do not get used to it.",
     "tool_error": "The alloy cracked. The error is reported exactly as it happened.",
     "offline": "The house is dark. I will be here when the lights return.",
+    "budget_exceeded": (
+        "Today's allowance is spent. I do not think on credit. "
+        "Raise the limit or wait for tomorrow."
+    ),
 }
 
 ROTATING_KEYS = (

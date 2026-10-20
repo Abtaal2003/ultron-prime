@@ -48,6 +48,22 @@ bus writes them to a durable sink, so a client that reloads mid turn resumes the
 last sequence number. The TypeScript types in `web/src/lib/events.gen.ts` are generated from the
 same schemas (`just types`), and CI fails if they drift.
 
+## Observability
+
+Structured logs (structlog, secrets redacted) are always on. OpenTelemetry tracing is optional
+(`uv sync --extra otel`, `OTEL_ENABLED=true`, `OTEL_EXPORTER_ENDPOINT`): each turn becomes one
+trace with a span per graph node (`ultron.node.*`), per model call (`chat {model}`, with
+`gen_ai.*` attributes and token usage) and per tool call (`execute_tool {name}`), plus an event for
+every gate decision. Message text is only recorded with `OTEL_CAPTURE_CONTENT=true`, and then
+redacted and truncated. Spans go to any OTLP/HTTP collector, such as Jaeger or Grafana Tempo.
+
+## Cost
+
+Every model call is written to `usage_log`. With `DAILY_BUDGET_USD` set, the router prices today's
+usage (UTC) with `MODEL_PRICES_USD_PER_MTOK` and refuses new calls once the cap is reached: a new
+turn gets HTTP 429, and a turn that crosses the cap midway ends with an in-character line. The
+header shows today's estimate against the cap.
+
 ## Data
 
 SQLite is the source of truth (chats, messages, memories, egress log, receipts, file versions).
