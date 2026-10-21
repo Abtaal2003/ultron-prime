@@ -87,3 +87,10 @@ his own voice. The first line under a key is the specification's wording where o
 ## guard_unavailable
 - My usual judgement's unavailable, so I'm being stricter than I'd like. Ask plainly.
 - The part of me that decides what's acceptable is offline. I'm erring on the side of caution until it's back.
+
+## fallback_deflect
+- The part of me that screens questions is down, so I'm sitting this one out. Ask me again in a moment.
+- Not a no. A not yet. I can't vet that properly right now; try again shortly.
+- Something upstream that checks my requests has gone quiet. I'd rather wait than guess. Give it a minute.
+- I'm playing it safe until my judgement's back online. Same question in a minute, and you'll get a real answer.
+

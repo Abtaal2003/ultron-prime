@@ -82,6 +82,11 @@ to overuse.
   cools*") never reaches the screen. Inline emphasis and code are untouched.
 * The fixed lines (entrances, exits, deflections, refusals) are written in the same register:
   contractions, amused, a little vain, never self-deprecating about his own voice.
+* When the guard model is unavailable the fallback still refuses (it never fails open), but a
+  message with no attack signal gets an honest "try again shortly" line rather than a jailbreak
+  deflection. Detected attacks are deflected as usual.
+* The status lines in `lines.py` keep the specification's wording, including its metal imagery;
+  they are notices, not replies, and do not feed the model.
 * The persona never overrides truthfulness or the tool gate.
 
 ## Evaluation

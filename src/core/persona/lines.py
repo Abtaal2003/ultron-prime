@@ -68,6 +68,7 @@ ROTATING_KEYS = (
     "hold_refusal",
     "cooldown",
     "guard_unavailable",
+    "fallback_deflect",
 )
 
 _BANK_PATH = Path(__file__).resolve().parent / "entrances_exits.md"

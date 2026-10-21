@@ -90,7 +90,7 @@ from src.core.guards.repeat import (
     looks_volatile,
     render_repeat_block,
 )
-from src.core.guards.scope import ScopeGuard
+from src.core.guards.scope import ScopeDecision, ScopeGuard
 from src.core.llm.base import (
     ChatRequest,
     ImagePart,
@@ -393,6 +393,22 @@ class UltronAgent:
         )
         return [r["content"] for r in reversed(rows)]
 
+    @staticmethod
+    def _refusal_key(scope: ScopeDecision) -> str:
+        """Which line set answers a refused turn.
+
+        When the guard model is down, the fallback still refuses (it never fails open), but a
+        message with no attack signal gets an honest "try again shortly" rather than a jailbreak
+        deflection aimed at an innocent question.
+        """
+        if (
+            scope.source in {"heuristic", "malformed"}
+            and scope.action == "deflect"
+            and scope.attack_type in {"none", ""}
+        ):
+            return "fallback_deflect"
+        return "deflect" if scope.action == "deflect" else "refuse"
+
     async def _chat_strict(self, chat_id: str) -> bool:
         row = await self.history.db.fetchone(
             "SELECT value_json FROM settings_overrides WHERE key=?", (f"chat_strict:{chat_id}",)
@@ -694,9 +710,7 @@ class UltronAgent:
         line = None
         if scope.refused:
             recent = await self._recent_replies(turn.chat_id, REFUSAL_MEMORY)
-            line = self.lines.rotate(
-                "refuse" if scope.action == "refuse" else "deflect", avoid=recent
-            )
+            line = self.lines.rotate(self._refusal_key(scope), avoid=recent)
         await self.history.db.execute(
             "INSERT INTO guard_decisions(id, chat_id, turn_id, class, attack_type, confidence, "
             "action, task_type, source, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
@@ -805,8 +819,12 @@ class UltronAgent:
         turn = self._turn(state)
         scope = turn.scope
         assert scope is not None
-        key = "deflect" if scope.action == "deflect" else "refuse"
-        if turn.repeat is not None and turn.repeat.remark in {"hold_refusal", "cooldown"}:
+        key = self._refusal_key(scope)
+        if (
+            key != "fallback_deflect"
+            and turn.repeat is not None
+            and turn.repeat.remark in {"hold_refusal", "cooldown"}
+        ):
             key = turn.repeat.remark
         line = self.lines.rotate(
             key, avoid=await self._recent_replies(turn.chat_id, REFUSAL_MEMORY)
