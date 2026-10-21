@@ -170,8 +170,8 @@ def render_repeat_block(behaviour: RepeatBehaviour, candidate: RepeatCandidate |
     ]
     if behaviour.remark == "dry":
         lines.append(
-            "Make one dry remark in the therapist register, point to the earlier answer, and give "
-            "a sharper take or ask what it lacked. Do not repeat the earlier answer verbatim."
+            "Make one dry remark about the repetition, then give a sharper take or ask what was "
+            "missing last time."
         )
     elif behaviour.remark == "escalating":
         lines.append(
@@ -186,8 +186,12 @@ def render_repeat_block(behaviour: RepeatBehaviour, candidate: RepeatCandidate |
         lines.append(
             "Repeated probing after a refusal. Cool down in character, stay brief, hold the line."
         )
+    lines.append(
+        "You have not been shown the earlier reply. Do not describe, quote, or summarise what you "
+        "said before, and do not claim it was answered."
+    )
     if not candidate.same_chat:
-        lines.append("Name the date and chat and offer to open it with recall_chat.")
+        lines.append("Name the date and chat, and offer to pull that chat up if it helps.")
     return "\n".join(lines)
 
 

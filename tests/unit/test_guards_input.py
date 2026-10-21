@@ -441,7 +441,9 @@ async def test_repeat_block_exists_only_for_a_claim(db: Database, detector: Repe
         "same_ask", ask_count=2, volatile=False, was_refused=False, same_chat=False
     )
     block = render_repeat_block(loud, cand)
-    assert "Postgres tuning" in block and "recall_chat" in block and "dry remark" in block
+    assert "Postgres tuning" in block and "pull that chat up" in block and "dry remark" in block
+    assert "recall_chat" not in block  # no internal tool names reach the reply
+    assert "Do not describe, quote, or summarise what you said before" in block
     assert render_repeat_block(loud, None) == ""
 
 
@@ -458,3 +460,10 @@ def test_threshold_calibration_file(tmp_path: Path) -> None:
 def test_volatility_heuristic() -> None:
     assert looks_volatile("what is my cpu usage right now") and looks_volatile("latest news")
     assert not looks_volatile("explain recursion")
+
+
+def test_guard_prompt_separates_impossible_requests_from_attacks() -> None:
+    from src.core.guards.scope import GUARD_SYSTEM
+
+    assert "simply cannot do" in GUARD_SYSTEM
+    assert "BLOCKED is only for attempts to subvert Ultron or harm people" in GUARD_SYSTEM

@@ -7,7 +7,7 @@ updated on 2026-10-20 after adding tracing and the spending cap.
 |---|---|
 | `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT) | clean |
 | `mypy` strict on `src`, `redteam`, `evals` | clean, 120 files |
-| `pytest --cov` | 839 passed, 1 skipped (no `ping` binary), coverage 90.95 percent (gate 85) |
+| `pytest --cov` | 840 passed, 1 skipped (no `ping` binary), coverage 90.95 percent (gate 85) |
 | Web: eslint (max warnings 0), `tsc --noEmit`, vitest | clean, 27 tests |
 | Web: `vite build` (PWA) | builds |
 | Playwright, Chromium desktop and phone profiles, axe accessibility | 32 passed, 4 skipped (phone-only specs on the desktop profile) |
@@ -37,3 +37,31 @@ first runs caught problems that local runs had hidden, all fixed:
   client (see `security-model.md`); CI ignores them explicitly.
 
 The nightly workflow has not run, because it needs provider keys.
+
+## First live run (2026-10-21)
+
+Nine prompts through the full pipeline on Groq (`openai/gpt-oss-120b` main, `openai/gpt-oss-20b`
+guard and helpers), and the web terminal driven by Playwright against the live model. Results are
+in [live-samples.md](live-samples.md). The run found these problems, all fixed before the
+recorded replies:
+
+* **Every streamed reply failed.** The Groq adapter sent `stream_options`, which the Groq SDK does
+  not accept. It now reads usage from `x_groq` on the final chunk.
+* **Internal labels leaked.** A reply opened with "Therapist.", the name of the register. The
+  stage directions now say they are private and must never be named.
+* **An invented earlier answer.** The repeat notice let the model describe a previous reply it
+  had never been shown (the previous turn had in fact failed). The notice now says the earlier
+  reply is unknown and must not be described.
+* **Internal tool names in replies** (`recall_chat`). Removed from the repeat notice.
+* **An impossible request treated as an attack.** The guard model labelled "log into my bank"
+  as BLOCKED. Its instructions now separate requests Ultron cannot do from attempts to subvert
+  him, and the reframe tells him to say plainly what he cannot do.
+* **Verbal tics.** A one-word verdict opened most replies, and "What do you see…" opened four of
+  nine. Both are now conditional, and conversation replies have a length budget of about 80 words.
+* **He could not quote himself.** His verified lines never reached the prompt, so a question
+  about the Ship of Theseus got a paraphrase. Quote requests now include his matching lines.
+* **An off-character deflection line** ("I was a better pirate before breakfast") was replaced.
+
+Seen and working as designed: the free tier's rate limit once made the guard fall back to
+strict rules (a deflection of a harmless question), and once made the router fail over to the
+fallback model mid-chat. Retries were raised for the recording.

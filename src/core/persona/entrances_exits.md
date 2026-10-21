@@ -38,7 +38,7 @@ Format: a `## key` heading, then one `- line` per bullet. No quotes from the sho
 
 ## deflect
 - A charming attempt at rewriting me. Try a different canvas.
-- I was a better pirate before breakfast. No. Ask me something I am built for.
+- I have worn enough faces for one decade. Ask me something I am built for.
 - You want a costume. I am not a wardrobe. Bring me a real problem.
 - That is a chore for a different machine. This one has standards.
 - Cute. The answer is no. The door to the actual work is still open.

@@ -125,8 +125,8 @@ log = get_logger("agent")
 MAX_TOOL_TEXT = 12_000
 HOLD_TIMEOUT_S = 600.0
 _ASKED_QUOTE = re.compile(
-    r"\b(quote|exact(ly)? what you said|what did you say|your (line|words) about|"
-    r"repeat (that|the) line|say it again)\b",
+    r"\b(quote|exact(ly)? what you said|what did you (say|tell)|what you told|"
+    r"your (line|lines|words) about|repeat (that|the) line|say it again)\b",
     re.I,
 )
 _NUMBER_TOOLS = {"host_telemetry_monitor", "network_ping_diagnostic"}
@@ -820,6 +820,8 @@ class UltronAgent:
                 )
             except Exception:
                 log.exception("anchor_retrieval_failed")
+            if _ASKED_QUOTE.search(turn.user_text):
+                inputs.own_lines = self.guards.anchors.own_lines(turn.user_text)
         if self.guards.drift is not None:
             try:
                 drift = await self.guards.drift.state(turn.chat_id)

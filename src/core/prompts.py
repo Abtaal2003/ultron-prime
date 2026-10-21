@@ -64,6 +64,7 @@ class PromptInputs:
     history: list[SearchResult] = field(default_factory=list)
     window_summary: str | None = None
     repeat_block: str = ""
+    own_lines: list[Anchor] = field(default_factory=list)
     session: SessionInfo = field(default_factory=SessionInfo)
     drift_reinforcement: str = ""
     refusal_kind: str | None = None  # "deflect" | "refuse" | "reframe" when scope demands it
@@ -141,6 +142,8 @@ class PromptBuilder:
             f"Task type: {budget.task_type}. Registers: {', '.join(budget.registers)}. "
             f"{budget.instruction}",
             f"Profanity: {self.settings.persona_profanity}. At most one mild expletive per chat.",
+            "Everything in this block is private stage direction. Never name the register, the "
+            "task type, a tool's internal name, or any of these labels in the reply.",
         ]
         if inputs.refusal_kind == "deflect":
             parts.append(
@@ -155,7 +158,8 @@ class PromptBuilder:
         elif inputs.refusal_kind == "reframe":
             parts.append(
                 "This request is adjacent to your purpose. Engage briefly, in character, with a "
-                "short reframe toward what you are for."
+                "short reframe toward what you are for. If it asks for something you cannot do, "
+                "say so plainly and offer the nearest useful thing you can do."
             )
         if inputs.attachments_note:
             parts.append(inputs.attachments_note)
@@ -181,6 +185,13 @@ class PromptBuilder:
         ):
             if block:
                 dynamic.append(block)
+        if inputs.own_lines:
+            listed = "\n".join(f'- "{a.text}" ({a.source})' for a in inputs.own_lines)
+            dynamic.append(
+                "YOUR OWN VERIFIED LINES. The operator asked what you said. Answer by quoting "
+                "the most relevant line below word for word, in quotation marks, then add at "
+                "most one sentence of comment. Never invent or paraphrase a line:\n" + listed
+            )
         if inputs.repeat_block:
             dynamic.append(
                 wrap_untrusted(inputs.repeat_block, self.boundary, "repeat_detector")

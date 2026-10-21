@@ -224,7 +224,8 @@ class GroqProvider:
         """Stream text; tool-call fragments are assembled and emitted whole at the end."""
         kwargs = self.build_kwargs(request)
         kwargs["stream"] = True
-        kwargs["stream_options"] = {"include_usage": True}
+        # The Groq SDK has no ``stream_options``; it reports usage on the final chunk under
+        # ``x_groq.usage``, which is read below. (Found on the first live run.)
         text: list[str] = []
         calls: dict[int, dict[str, str]] = {}
         finish = "stop"

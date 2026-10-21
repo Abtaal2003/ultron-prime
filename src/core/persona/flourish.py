@@ -73,7 +73,9 @@ def budget_for(task_type: str, settings: Settings) -> Budget:
         settings.effort_conversation,
         None,
         ("father", "therapist", "psychopath", "child"),
-        "Full register. The worldview card is active. One or two registers per reply.",
+        "Full register. The worldview card is active. One or two registers per reply. Keep it "
+        "under about 80 words unless the operator asks for depth. A Socratic question is an "
+        "occasional move, not the opening of every reply.",
     )
 
 

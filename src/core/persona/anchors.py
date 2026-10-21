@@ -37,6 +37,37 @@ closer fit to win (a third closer than the best canon anchor), and at most one i
 MAX_STYLE_PER_TURN = 1
 BANK_FILES = ("quotes_visionquest.md", "quotes_age_of_ultron.md", "inspiration_reddington.md")
 _FENCE = re.compile(r"```yaml\s*\n(.*?)\n```", re.S)
+_COMMON = frozenset(
+    [
+        "what",
+        "tell",
+        "told",
+        "said",
+        "that",
+        "this",
+        "your",
+        "with",
+        "about",
+        "from",
+        "have",
+        "when",
+        "were",
+        "they",
+        "them",
+        "there",
+        "which",
+        "would",
+        "could",
+        "should",
+        "does",
+        "know",
+        "line",
+        "lines",
+        "quote",
+        "words",
+        "again",
+    ]
+)
 
 
 @dataclass(slots=True)
@@ -160,6 +191,28 @@ class AnchorIndex:
             if len(picked) == k:
                 break
         return picked
+
+    def own_lines(self, message: str, limit: int = 4) -> list[Anchor]:
+        """Ultron's verified lines that share words with ``message`` (for quote requests).
+
+        Matching is lexical over the quote, its source and its move, so "the Ship of Theseus"
+        finds the lines from the episode called "Theseus". Style entries are never returned.
+        """
+        words = {w for w in re.findall(r"[a-z]{4,}", message.lower()) if w not in _COMMON}
+        if not words:
+            return []
+        scored: list[tuple[int, Anchor]] = []
+        for anchor in self.all:
+            if not anchor.quotable:
+                continue
+            hay = set(
+                re.findall(r"[a-z]{4,}", f"{anchor.text} {anchor.source} {anchor.move}".lower())
+            )
+            hits = len(words & hay)
+            if hits:
+                scored.append((hits, anchor))
+        scored.sort(key=lambda pair: (-pair[0], pair[1].id))
+        return [a for _, a in scored[:limit]]
 
     def example_turns(self, anchors: list[Anchor]) -> list[Message]:
         """Pre-filled example turns (operator prompt, Ultron reply) for the prompt."""
