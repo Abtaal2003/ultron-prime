@@ -70,7 +70,7 @@ def guidance(recent_replies: Iterable[str]) -> str:
     rest = resting(recent_replies)
     base = (
         "Imagery: at most one image in this reply, and often none; a plain sentence is usually "
-        "stronger. Metal and forging is one image family among several, never the default."
+        "stronger."
     )
     if not rest:
         return base
