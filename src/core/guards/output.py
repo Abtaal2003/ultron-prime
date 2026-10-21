@@ -31,6 +31,7 @@ from src.core.errors import UltronError
 from src.core.guards.delimit import new_boundary, wrap_untrusted
 from src.core.llm.base import ChatRequest, Message
 from src.core.llm.router import CallContext, LLMRouter
+from src.core.persona import motifs
 from src.core.persona.anchors import Anchor
 from src.core.persona.flourish import PersonaState, check_persona_limits
 from src.core.persona.ngram import overlapping
@@ -39,7 +40,8 @@ from src.tools.security import SecretScanner
 
 log = get_logger("output_guard")
 
-Severity = Literal["block", "regenerate", "redact"]
+Severity = Literal["block", "regenerate", "redact", "note"]
+"""``note`` records a style observation; it never blocks or forces a rewrite."""
 BLOCK_ISSUES = {"canary_leak", "charter_leak"}
 EXEMPT_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}  # noqa: S104
 EXEMPT_SUFFIXES = (".example", ".test", ".invalid", ".localhost")
@@ -136,6 +138,7 @@ class OutputContext:
     banks: list[Anchor] = field(default_factory=list)
     tainted: bool = False
     injection_suspected: bool = False
+    recent_replies: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -405,6 +408,8 @@ class OutputGuard:
         callback = self._check_parroting(text, ctx, issues)
         for name in check_persona_limits(text, ctx.persona, self.settings):
             issues.append(Issue(name, "regenerate"))
+        for problem in motifs.overuse(text, ctx.recent_replies):
+            issues.append(Issue("motif_overuse", "note", problem))
         return OutputCheck(text=text, issues=issues, callback_used=callback)
 
     async def llm_check(

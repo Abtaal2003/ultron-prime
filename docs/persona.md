@@ -49,6 +49,13 @@ about limits), those moves are used deliberately, as a project choice:
 * Left out because they break the persona's rules: his secrecy and withheld information, long
   anecdotes, invented personal history, and anything criminal.
 
+## Imagery
+
+Signature images (the house, painting, evolution, the ship, metal) are rationed per chat by
+`motifs.py`: at most one image per reply, and a family used in either of the last two replies
+rests. A live run found metal in most replies; it is now listed last and marked as the easiest
+to overuse.
+
 ## Rules enforced in code
 
 * Replies are checked for n-gram overlap with the quote banks (anti-parroting, limit

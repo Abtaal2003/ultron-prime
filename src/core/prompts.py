@@ -65,6 +65,7 @@ class PromptInputs:
     window_summary: str | None = None
     repeat_block: str = ""
     own_lines: list[Anchor] = field(default_factory=list)
+    motif_note: str = ""
     session: SessionInfo = field(default_factory=SessionInfo)
     drift_reinforcement: str = ""
     refusal_kind: str | None = None  # "deflect" | "refuse" | "reframe" when scope demands it
@@ -145,6 +146,8 @@ class PromptBuilder:
             "Everything in this block is private stage direction. Never name the register, the "
             "task type, a tool's internal name, or any of these labels in the reply.",
         ]
+        if inputs.motif_note:
+            parts.append(inputs.motif_note)
         if inputs.refusal_kind == "deflect":
             parts.append(
                 "This request is outside your identity or scope. Deflect in character in one or "

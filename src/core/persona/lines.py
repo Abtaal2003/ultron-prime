@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import random
 import re
+from collections.abc import Iterable
 from pathlib import Path
 
 THEMED: dict[str, str] = {
@@ -98,12 +99,18 @@ class LineBank:
         """Return the fixed themed line for ``key`` (empty string for an unknown key)."""
         return THEMED.get(key, "")
 
-    def rotate(self, key: str) -> str:
-        """Return a rotating entrance/exit line, never equal to the previous pick for ``key``."""
+    def rotate(self, key: str, avoid: Iterable[str] = ()) -> str:
+        """Return a rotating line for ``key``.
+
+        Never the previous pick, and never a line in ``avoid`` (the chat's recent replies), so a
+        long chat cycles through the whole set before any line comes back.
+        """
         options = self._bank.get(key) or ([THEMED[key]] if key in THEMED else [])
         if not options:
             return ""
-        candidates = [o for o in options if o != self._last.get(key)] or options
+        used = {a.strip() for a in avoid}
+        fresh = [o for o in options if o not in used and o != self._last.get(key)]
+        candidates = fresh or [o for o in options if o != self._last.get(key)] or options
         choice = self._rng.choice(candidates)
         self._last[key] = choice
         return choice

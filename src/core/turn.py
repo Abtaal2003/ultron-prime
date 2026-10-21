@@ -97,6 +97,7 @@ class Turn:
     callback_used: str | None = None
     stream_blocked: bool = False
     camel_done: bool = False
+    recent_replies: list[str] = field(default_factory=list)
     done: asyncio.Event = field(default_factory=asyncio.Event)
     task: asyncio.Task[None] | None = None
 

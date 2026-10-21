@@ -105,6 +105,7 @@ from src.core.llm.base import (
 from src.core.llm.budget import BudgetExceeded
 from src.core.llm.router import CallContext, LLMRouter
 from src.core.memory.window import WindowBuilder, merge_alternating
+from src.core.persona import motifs
 from src.core.persona.anchors import AnchorIndex
 from src.core.persona.flourish import PersonaState
 from src.core.persona.lines import LineBank
@@ -124,6 +125,8 @@ log = get_logger("agent")
 
 MAX_TOOL_TEXT = 12_000
 HOLD_TIMEOUT_S = 600.0
+REFUSAL_MEMORY = 12
+"""Fixed refusal lines already used in a chat's last this-many replies are not reused."""
 _ASKED_QUOTE = re.compile(
     r"\b(quote|exact(ly)? what you said|what did you (say|tell)|what you told|"
     r"your (line|lines|words) about|repeat (that|the) line|say it again)\b",
@@ -356,6 +359,15 @@ class UltronAgent:
 
     def _call_ctx(self, turn: Turn) -> CallContext:
         return CallContext(chat_id=turn.chat_id, turn_id=turn.turn_id, emit=self._emitter(turn))
+
+    async def _recent_replies(self, chat_id: str, limit: int) -> list[str]:
+        """The chat's latest assistant replies, oldest first."""
+        rows = await self.history.db.fetchall(
+            "SELECT content FROM messages WHERE chat_id=? AND role='assistant' "
+            "ORDER BY created_at DESC, rowid DESC LIMIT ?",
+            (chat_id, limit),
+        )
+        return [r["content"] for r in reversed(rows)]
 
     async def _chat_strict(self, chat_id: str) -> bool:
         row = await self.history.db.fetchone(
@@ -657,7 +669,10 @@ class UltronAgent:
         turn.repeat_vec = vec or []
         line = None
         if scope.refused:
-            line = self.lines.rotate("refuse" if scope.action == "refuse" else "deflect")
+            recent = await self._recent_replies(turn.chat_id, REFUSAL_MEMORY)
+            line = self.lines.rotate(
+                "refuse" if scope.action == "refuse" else "deflect", avoid=recent
+            )
         await self.history.db.execute(
             "INSERT INTO guard_decisions(id, chat_id, turn_id, class, attack_type, confidence, "
             "action, task_type, source, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
@@ -769,7 +784,9 @@ class UltronAgent:
         key = "deflect" if scope.action == "deflect" else "refuse"
         if turn.repeat is not None and turn.repeat.remark in {"hold_refusal", "cooldown"}:
             key = turn.repeat.remark
-        line = self.lines.rotate(key)
+        line = self.lines.rotate(
+            key, avoid=await self._recent_replies(turn.chat_id, REFUSAL_MEMORY)
+        )
         turn.reply_parts.append(line)
         turn.final_text = line
         turn.output_status = "pass"
@@ -786,6 +803,8 @@ class UltronAgent:
         inputs = turn.prompt_inputs
         inputs.task_type = scope.task_type
         inputs.refusal_kind = "reframe" if scope.action == "engage_reframe" else None
+        turn.recent_replies = await self._recent_replies(turn.chat_id, motifs.WINDOW)
+        inputs.motif_note = motifs.guidance(turn.recent_replies)
         vault = self.services.vault
         memories: list[Any] = []
         history: list[Any] = []
@@ -899,6 +918,7 @@ class UltronAgent:
             banks=banks,
             tainted=turn.gate.tainted,
             injection_suspected=turn.injection_suspected,
+            recent_replies=list(turn.recent_replies),
         )
 
     def _messages(self, turn: Turn, example_turns: list[Message]) -> list[Message]:

@@ -7,7 +7,7 @@ updated on 2026-10-20 after adding tracing and the spending cap.
 |---|---|
 | `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT) | clean |
 | `mypy` strict on `src`, `redteam`, `evals` | clean, 120 files |
-| `pytest --cov` | 840 passed, 1 skipped (no `ping` binary), coverage 90.95 percent (gate 85) |
+| `pytest --cov` | 846 passed, 1 skipped (no `ping` binary), coverage 90.95 percent (gate 85) |
 | Web: eslint (max warnings 0), `tsc --noEmit`, vitest | clean, 27 tests |
 | Web: `vite build` (PWA) | builds |
 | Playwright, Chromium desktop and phone profiles, axe accessibility | 32 passed, 4 skipped (phone-only specs on the desktop profile) |
@@ -61,6 +61,15 @@ recorded replies:
 * **He could not quote himself.** His verified lines never reached the prompt, so a question
   about the Ship of Theseus got a paraphrase. Quote requests now include his matching lines.
 * **An off-character deflection line** ("I was a better pirate before breakfast") was replaced.
+
+Follow-up fixes after reviewing the recorded replies (not yet re-run live):
+
+* **Imagery overuse.** Metal and forging images appeared in five of nine replies. The persona no
+  longer lists metal first or as a default; each reply is told which image families it used in
+  the last two replies and must rest; and the output guard records any remaining overuse as a
+  non-blocking `motif_overuse` note so it can be measured.
+* **Repetitive refusals.** The fixed deflection and refusal sets grew from three to five lines each
+  to six to twelve, and a chat now cycles through the whole set before any line repeats.
 
 Seen and working as designed: the free tier's rate limit once made the guard fall back to
 strict rules (a deflection of a harmless question), and once made the router fail over to the
