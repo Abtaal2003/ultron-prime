@@ -118,13 +118,37 @@ from src.files.parsers.image import downscale_for_model
 from src.files.types import UPLOAD_TYPES, extension_of
 from src.logging_setup import get_logger
 from src.tools.base import ToolContext, ToolResult, canonical_json, sha256_hex
-from src.tools.gate import ToolGate
+from src.tools.gate import GateDecision, ToolGate
 from src.tools.registry import ToolRegistry
 
 log = get_logger("agent")
 
 MAX_TOOL_TEXT = 12_000
 HOLD_TIMEOUT_S = 600.0
+TOOLS_ALWAYS = frozenset(
+    {
+        "web_omniscience_search",
+        "recall_memories",
+        "search_past_chats",
+        "recall_chat",
+        "propose_memory",
+    }
+)
+TOOLS_TECH = frozenset(
+    {
+        "isolated_python_sandbox",
+        "host_telemetry_monitor",
+        "file_system_scribe",
+        "network_ping_diagnostic",
+    }
+)
+TOOLS_CATALOGUE = TOOLS_ALWAYS | TOOLS_TECH | {"artifact_forge", "attachment_reader"}
+_FILE_WORDS = re.compile(
+    r"\b(documents?|docx?|word file|pdfs?|spreadsheets?|excel|xlsx|csv|charts?|graphs?|plots?|"
+    r"reports?|slides?|presentation|tables?|convert|export|template|invoice|file)\b",
+    re.I,
+)
+_ATTACH_WORDS = re.compile(r"\b(upload\w*|attach\w*)\b", re.I)
 REFUSAL_MEMORY = 12
 """Fixed refusal lines already used in a chat's last this-many replies are not reused."""
 _ASKED_QUOTE = re.compile(
@@ -885,10 +909,35 @@ class UltronAgent:
         await self.camel.run(self._turn(state))
         return {}
 
+    def _offered_tools(self, turn: Turn) -> set[str]:
+        """The tools this turn needs (spec 12.5, latency and cost budget).
+
+        Every tool definition is sent with every model call, and the document builder's alone is
+        larger than the persona. So each turn is offered what it plausibly needs: memory, history
+        and search always; host and workspace tools for technical turns; the document builder
+        when the operator asks for a file; the attachment reader when files are attached. Tools
+        outside the known catalogue (plugins, tests) are always offered.
+        """
+        enabled = {t.name for t in self.registry.enabled(self.settings, self.gate.disabled)}
+        if not self.settings.tool_scoping:
+            return enabled
+        scope = turn.scope
+        wanted = set(TOOLS_ALWAYS)
+        if scope is not None and scope.task_type in {"TECH", "REVIEW"}:
+            wanted |= TOOLS_TECH
+        if _FILE_WORDS.search(turn.user_text):
+            wanted |= {"artifact_forge", "file_system_scribe"}
+        if turn.attachment_ids or _ATTACH_WORDS.search(turn.user_text):
+            wanted.add("attachment_reader")
+        unknown = enabled - TOOLS_CATALOGUE
+        return (enabled & wanted) | unknown
+
     def _tool_specs(self, turn: Turn) -> list[ToolSpec]:
+        turn.offered_tools = self._offered_tools(turn)
         return [
             ToolSpec(name=t.name, description=t.description, parameters=t.json_schema())
             for t in self.registry.enabled(self.settings, self.gate.disabled)
+            if t.name in turn.offered_tools
         ]
 
     def _output_ctx(self, turn: Turn) -> OutputContext:
@@ -1006,7 +1055,20 @@ class UltronAgent:
         turn.ready, turn.held, turn.outcomes = [], [], []
         for pending in turn.pending:
             call = pending.call
-            decision = self.gate.check(turn.gate, call.name, call.arguments, call.id)
+            if (
+                turn.offered_tools
+                and call.name not in turn.offered_tools
+                and call.name
+                in {t.name for t in self.registry.enabled(self.settings, self.gate.disabled)}
+            ):
+                decision = GateDecision(
+                    "deny",
+                    reason=f"'{call.name}' was not offered this turn",
+                    policy="scope",
+                    error_kind="validation",
+                )
+            else:
+                decision = self.gate.check(turn.gate, call.name, call.arguments, call.id)
             pending.decision = decision
             tracing.current_event(
                 "ultron.gate.decision",

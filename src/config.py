@@ -206,6 +206,7 @@ class Settings(BaseSettings):
 
     # --- Loop guards (12.2) -------------------------------------------------------------------
     max_tool_iterations: int = Field(8, ge=1)
+    tool_scoping: bool = True  # offer each turn only the tools it plausibly needs
     max_tool_time_s: float = Field(90, gt=0)
     max_concurrent_tools: int = Field(3, ge=1)
     max_quarantined_reads_per_turn: int = Field(10, ge=0)

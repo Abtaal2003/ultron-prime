@@ -63,3 +63,38 @@ def test_rotation_avoids_lines_already_used_in_the_chat() -> None:
     assert len(set(used)) == 12  # the whole set before any repeat
     again = lines.rotate("refuse", avoid=used)
     assert again in used and again != used[-1]  # exhausted: reuse, but never twice in a row
+
+
+def test_dash_punctuation_becomes_commas_but_code_and_ranges_stay() -> None:
+    from src.core.persona.punctuation import count_dashes, tidy
+
+    live = "Remember, confidence is a well‑forged alloy—hard to crack, but it can be tempered."
+    assert tidy(live) == (
+        "Remember, confidence is a well-forged alloy, hard to crack, but it can be tempered."
+    )
+    assert tidy("Guard line 14 – ensure it.") == "Guard line 14, ensure it."
+    assert tidy("A—B—C") == "A, B, C"
+    assert tidy("It ends here—") == "It ends here"
+    assert tidy("Pages 2–3 and 4 – 5.") == "Pages 2–3 and 4 – 5."
+    assert tidy("pre–war") == "pre-war"
+    assert tidy('"Be the king."—a reminder.') == '"Be the king." A reminder.'
+    code = "Use `a — b`:\n```python\nx = 1  # a — b\n```\nDone—really."
+    assert tidy(code) == "Use `a — b`:\n```python\nx = 1  # a — b\n```\nDone, really."
+    assert tidy("y = 2  # c — d\n``` after—this", in_code=True) == (
+        "y = 2  # c — d\n``` after, this"
+    )
+    assert count_dashes(code) == 1
+
+
+def test_streamed_sentences_and_final_reply_are_tidied(settings) -> None:  # type: ignore[no-untyped-def]
+    from src.core.turn import SentenceStreamer
+
+    guard = OutputGuard(settings, SecretScanner())
+    streamer = SentenceStreamer(guard, OutputContext(), raw=False)
+    shown = streamer.feed("Humans are glass—bright and brittle. Then ")
+    shown += streamer.feed("code:\n```\nx = a — b\n```\n")
+    shown += streamer.flush()
+    text = "".join(shown)
+    assert "glass, bright and brittle." in text
+    assert "x = a — b" in text  # untouched inside the fence
+    assert guard.check("Fine—truly.", OutputContext()).text == "Fine, truly."

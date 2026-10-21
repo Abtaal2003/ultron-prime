@@ -31,7 +31,7 @@ from src.core.errors import UltronError
 from src.core.guards.delimit import new_boundary, wrap_untrusted
 from src.core.llm.base import ChatRequest, Message
 from src.core.llm.router import CallContext, LLMRouter
-from src.core.persona import motifs
+from src.core.persona import motifs, punctuation
 from src.core.persona.anchors import Anchor
 from src.core.persona.flourish import PersonaState, check_persona_limits
 from src.core.persona.ngram import overlapping
@@ -395,7 +395,7 @@ class OutputGuard:
     def check(self, reply: str, ctx: OutputContext) -> OutputCheck:
         """Run every deterministic check once."""
         issues: list[Issue] = []
-        text = reply
+        text = punctuation.tidy(reply)
         self.check_leaks(reply, ctx, issues)
         if self.scanner.contains_secret(text):
             text = self.scanner.redact(text)

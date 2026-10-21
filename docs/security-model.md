@@ -11,7 +11,7 @@ do when that happens, and the answer is enforced in code.
 | L2 guard model | `guards/` + router role `guard` | One structured call: attack type, task type, scope, repeat relation. Fast provider, hardened prompt |
 | L3 anchored prompt | `prompts.py` | Immutable charter first, random per turn delimiters, untrusted data labelled as data |
 | L3.5 quarantined reader | `guards/quarantine.py` | A tool-less model reads external documents and returns a schema-bound summary; the acting model sees that, not the raw text |
-| L4 tool gate | `tools/gate.py`, `guards/egress_policy.py` | Schema validation, allow lists, path containment, taint-aware egress holds, per turn caps |
+| L4 tool gate | `tools/gate.py`, `guards/egress_policy.py` | Schema validation, allow lists, path containment, taint-aware egress holds, per turn caps, per turn tool scoping (a tool not offered this turn is denied) |
 | L5 output guard | `guards/output.py` | Canary and charter leakage, secrets, fabricated URLs and numbers, persona limits, streamed sentence by sentence |
 | CaMeL (optional) | `core/camel/` | The plan is fixed from operator words before untrusted data is read; data flow is tracked by capability (`camel.md`) |
 

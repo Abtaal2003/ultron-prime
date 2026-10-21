@@ -7,7 +7,7 @@ updated on 2026-10-20 after adding tracing and the spending cap.
 |---|---|
 | `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT) | clean |
 | `mypy` strict on `src`, `redteam`, `evals` | clean, 120 files |
-| `pytest --cov` | 846 passed, 1 skipped (no `ping` binary), coverage 90.95 percent (gate 85) |
+| `pytest --cov` | 852 passed, 1 skipped (no `ping` binary), coverage 91.02 percent (gate 85) |
 | Web: eslint (max warnings 0), `tsc --noEmit`, vitest | clean, 27 tests |
 | Web: `vite build` (PWA) | builds |
 | Playwright, Chromium desktop and phone profiles, axe accessibility | 32 passed, 4 skipped (phone-only specs on the desktop profile) |
@@ -74,3 +74,24 @@ Follow-up fixes after reviewing the recorded replies (not yet re-run live):
 Seen and working as designed: the free tier's rate limit once made the guard fall back to
 strict rules (a deflection of a harmless question), and once made the router fail over to the
 fallback model mid-chat. Retries were raised for the recording.
+
+### Second live run, same day
+
+Five of the nine prompts were rerecorded after the fixes above plus two more:
+
+* **Punctuation.** Ultron's voice rules now ask for commas, colons and full stops instead of em
+  dashes, and `persona/punctuation.py` rewrites any dash used as punctuation in prose, both in
+  each streamed sentence and in the final reply. Code, inline code and numeric ranges are left
+  alone. The first run had em dashes in four of nine replies.
+* **Tool scoping.** Every turn used to carry all eleven tool schemas, about 10k tokens per main
+  request, which exhausted the free tier's daily allowance after a few dozen calls. A turn is now
+  offered only the tools it plausibly needs: search and memory always; host, file and sandbox
+  tools for technical turns; the document forge and attachment reader when the message mentions
+  files or has attachments. A call to a tool that was not offered is denied by the gate. A
+  technical turn now costs about 6 to 7k tokens across all roles, or roughly 30 turns a day on
+  Groq's free tier. `TOOL_SCOPING=false` restores the full set.
+
+Results over the five rerecorded replies: metal imagery in one (previously five of nine), em
+dashes in none. The other four prompts (the quote, humans,
+the bank and the Rust rewrite) hit the daily token limit and are still to be rerecorded; their
+first-run replies are kept in [live-samples.md](live-samples.md).

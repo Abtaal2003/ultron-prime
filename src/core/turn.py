@@ -20,6 +20,7 @@ from src.core.guards.repeat import RepeatBehaviour, RepeatCandidate
 from src.core.guards.scope import ScopeDecision
 from src.core.llm.base import Message, ToolUsePart, Usage
 from src.core.memory.window import Window
+from src.core.persona import punctuation
 from src.core.prompts import PromptInputs
 from src.tools.base import ToolResult
 from src.tools.gate import GateDecision, TurnGateState
@@ -98,6 +99,7 @@ class Turn:
     stream_blocked: bool = False
     camel_done: bool = False
     recent_replies: list[str] = field(default_factory=list)
+    offered_tools: set[str] = field(default_factory=set)
     done: asyncio.Event = field(default_factory=asyncio.Event)
     task: asyncio.Task[None] | None = None
 
@@ -134,6 +136,7 @@ class SentenceStreamer:
             return None
         if self.guard.scanner.contains_secret(sentence):
             sentence = self.guard.scanner.redact(sentence)
+        sentence = punctuation.tidy(sentence, in_code=self._released.count("```") % 2 == 1)
         self._released += sentence
         return sentence
 
