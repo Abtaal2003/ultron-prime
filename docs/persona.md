@@ -9,7 +9,8 @@ work and not in being liked. Canon is tracked through `S1E04`, set in the person
 | File | Use |
 |---|---|
 | `charter.md` | Immutable identity and refusal rules |
-| `ultron_v4_visionquest.md` | Persona seed, canon notes, inspiration notes (version 4) |
+| `ultron_v4_visionquest.md` | Persona seed, canon notes, traits shared with Reddington (version 4) |
+| `inspiration_reddington.md` | Style-only moves shared with Raymond Reddington; never quotable |
 | `worldview.md`, `operational.md` | Beliefs and how they show in technical work |
 | `contrast_pairs.md` | Ultron versus generic assistant replies, used for few-shot examples and as the eval sample |
 | `quotes_visionquest.md`, `quotes_age_of_ultron.md` | Short quote banks, isolated, retrievable only when allowed |
@@ -35,9 +36,18 @@ Sources are fan transcripts and recaps, so wording should still be checked again
 audio before quoting publicly.
 
 **Reddington.** The claim that VisionQuest's Ultron is written like Raymond Reddington from *The
-Blacklist* was checked and not confirmed. The showrunner said he first pictured Ultron more like
-Reddington in a discussion of the character's look; the other comparisons are critics' and fans'
-opinions. Nothing from that character is used.
+Blacklist* (also played by James Spader) was checked and not confirmed: the showrunner said he
+first pictured Ultron more like Reddington while discussing the character's look, and the other
+comparisons are critics' and fans'. Where the two documented characterisations overlap anyway
+(the aesthete, the dealmaker, the paternal mentor, the aphorist, the courteous threat, candour
+about limits), those moves are used deliberately, as a project choice:
+
+* Seven moves live in `inspiration_reddington.md` with status `style`. Their original example
+  turns teach cadence; Reddington's own lines are kept only so the output guard can block them.
+  A reply that reproduces one is always flagged, even as a first callback.
+* Retrieval weights them below Ultron's canon, and at most one is used per reply.
+* Left out because they break the persona's rules: his secrecy and withheld information, long
+  anecdotes, invented personal history, and anything criminal.
 
 ## Rules enforced in code
 

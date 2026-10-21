@@ -22,7 +22,7 @@ from src.core.persona.ngram import overlapping, window_for, words
 
 def test_banks_load_and_unverified_are_excluded() -> None:
     banks = load_banks()
-    assert len(banks) == 32
+    assert len(banks) == 39
     retrievable = [a for a in banks if a.retrievable]
     assert {a.id for a in banks} - {a.id for a in retrievable} == {
         "vq-08",
@@ -162,3 +162,38 @@ def test_worldview_has_sixteen_beliefs() -> None:
     text = (PERSONA_DIR / "worldview.md").read_text("utf-8")
     numbered = [ln for ln in text.splitlines() if ln.split(".")[0].strip().isdigit()]
     assert len(numbered) == 16
+
+
+def test_reddington_moves_are_style_only() -> None:
+    banks = load_banks()
+    borrowed = [a for a in banks if a.era == "reddington_inspired"]
+    assert len(borrowed) == 7
+    assert all(a.status == "style" and a.retrievable and not a.quotable for a in borrowed)
+    assert all(a.quotable for a in banks if a.status in {"aired", "trailer", "clip"} and a.text)
+
+
+def test_no_example_reply_copies_any_line() -> None:
+    banks = load_banks()
+    lines = [(a.id, a.text) for a in banks if a.text]
+    for anchor in banks:
+        if anchor.example_ultron:
+            assert overlapping(anchor.example_ultron, lines, 6) == [], anchor.id
+
+
+async def test_style_moves_are_weighted_below_ultron_canon() -> None:
+    from src.core.persona.anchors import ERA_WEIGHT
+
+    assert ERA_WEIGHT["reddington_inspired"] < 1.0
+    index = AnchorIndex(HashingEmbedder())
+    # A clear fit surfaces the borrowed move...
+    got = await index.retrieve(
+        "the team agreed nobody pushes to main", tags=["unenforced_rule", "branch_protection"], k=3
+    )
+    assert any(a.id == "rr-03" for a in got)
+    # ...but never more than one per reply, however many would match.
+    many = await index.retrieve(
+        "just fix it, no context",
+        tags=["demanding_answers", "unenforced_rule", "outage_panic", "frustration"],
+        k=6,
+    )
+    assert sum(a.status == "style" for a in many) <= 1

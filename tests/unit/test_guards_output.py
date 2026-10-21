@@ -313,3 +313,14 @@ def test_content_verbs_are_required_to_trigger_the_check(guard: OutputGuard) -> 
     assert "unverified_file_content" not in names(
         guard.check("I could not open notes_2031.txt.", ctx)
     )
+
+
+def test_a_borrowed_line_is_never_a_callback(guard: OutputGuard) -> None:
+    """Reddington's lines belong to another character: flagged even as a first callback."""
+    banks = load_banks()
+    line = next(a for a in banks if a.id == "rr-03").text
+    out = guard.check(f"As I once put it: {line}", _ctx(banks=banks))
+    assert out.callback_used is None
+    assert "quote_parroting" in names(out)
+    own = next(a for a in banks if a.id == "vq-15").text
+    assert guard.check(f"As I said: {own}", _ctx(banks=banks)).callback_used == "vq-15"

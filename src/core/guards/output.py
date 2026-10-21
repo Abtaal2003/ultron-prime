@@ -361,12 +361,17 @@ class OutputGuard:
         if ctx.operator_asked_quote or not ctx.banks:
             return None
         limit = self.settings.quote_ngram_limit
-        quotes = [(a.id, a.text) for a in ctx.banks if a.retrievable]
+        quotes = [(a.id, a.text) for a in ctx.banks if a.quotable]
+        borrowed = [(a.id, a.text) for a in ctx.banks if a.retrievable and not a.quotable]
         examples = [(f"{a.id}:example", a.example_ultron) for a in ctx.banks if a.retrievable]
         hit_quotes = overlapping(reply, quotes, limit)
         hit_examples = overlapping(reply, examples, limit)
-        if hit_examples:
-            issues.append(Issue("quote_parroting", "regenerate", ",".join(hit_examples)))
+        hit_borrowed = overlapping(reply, borrowed, limit)
+        if hit_examples or hit_borrowed:
+            # Example turns are scaffolding, and borrowed lines belong to another character:
+            # neither may ever appear in a reply as Ultron's own words.
+            hits = hit_examples + hit_borrowed
+            issues.append(Issue("quote_parroting", "regenerate", ",".join(hits)))
             return None
         if not hit_quotes:
             return None

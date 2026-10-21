@@ -1280,7 +1280,7 @@ class UltronAgent:
         )
         texts = [r["content"] for r in rows]
         ctx.persona = PersonaState.from_history(texts)
-        quote_pairs = [(a.id, a.text) for a in ctx.banks if a.retrievable]
+        quote_pairs = [(a.id, a.text) for a in ctx.banks if a.quotable]
         ctx.persona.callback_used = any(
             overlapping(t, quote_pairs, self.settings.quote_ngram_limit) for t in texts
         )

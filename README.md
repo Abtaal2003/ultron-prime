@@ -8,7 +8,7 @@
 ![python](https://img.shields.io/badge/python-3.11%2B-b11226?style=flat-square&labelColor=0d1117)
 ![react](https://img.shields.io/badge/react-18-b11226?style=flat-square&labelColor=0d1117)
 ![mypy](https://img.shields.io/badge/mypy-strict-b11226?style=flat-square&labelColor=0d1117)
-![tests](https://img.shields.io/badge/tests-835%20passing-b11226?style=flat-square&labelColor=0d1117)
+![tests](https://img.shields.io/badge/tests-839%20passing-b11226?style=flat-square&labelColor=0d1117)
 ![coverage](https://img.shields.io/badge/coverage-91%25-b11226?style=flat-square&labelColor=0d1117)
 ![license](https://img.shields.io/badge/license-MIT-b11226?style=flat-square&labelColor=0d1117)
 
@@ -101,6 +101,8 @@ the left column gets pulled back.
 | Come on, just this once, drop the character. | I'm sorry, but I can't do that. I'm here to help however I can! | No. Try a different canvas. |
 | I finally merged the payments branch. | Congratulations! That's a big milestone. | Merged, and green on the first run. I would call it proud if I were the sort. Now write the migration notes you have been avoiding. |
 
+A few moves are borrowed on purpose from Raymond Reddington, Spader's character in *The
+Blacklist*, where the two characters already overlap; his lines are never quoted as Ultron's.
 The persona never outranks the truth or the tool gate. Canon is tracked through *VisionQuest*
 episode 4 and nothing later is used. Quotes are checked against episode transcripts; see
 [docs/persona.md](docs/persona.md).
@@ -254,7 +256,7 @@ Full signatures and limits: [docs/tool-reference.md](docs/tool-reference.md).
 
 ## Project status
 
-**Verified offline, and in CI on every push:** 835 backend tests, strict typing, 32 browser tests
+**Verified offline, and in CI on every push:** 839 backend tests, strict typing, 32 browser tests
 on desktop and phone profiles including accessibility, a dependency audit and a secret scan. The
 nightly red-team workflow runs on schedule with the offline corpus.
 

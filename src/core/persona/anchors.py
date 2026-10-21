@@ -2,8 +2,16 @@
 
 Each bank entry is embedded over its *situation and move*, never over the quote text. At turn time
 the operator's message plus the guard's tags retrieve the closest entries, with era weighting
-(70 percent VisionQuest, 30 percent Age of Ultron). They are injected as pre-filled example turns
-that demonstrate the move with original wording.
+(VisionQuest first, then Age of Ultron, then the Reddington-inspired moves). They are injected as
+pre-filled example turns that demonstrate the move with original wording.
+
+Two kinds of entry:
+
+* **Quotes** (``aired``, ``trailer``, ``clip``): Ultron's own lines. One may be used as a callback
+  per chat.
+* **Style** (``style``): moves borrowed from another character (Raymond Reddington, also played by
+  James Spader). Their example turns teach cadence like any other anchor, but their text is never
+  Ultron's to quote: reproducing it is always flagged as parroting.
 """
 
 from __future__ import annotations
@@ -19,8 +27,15 @@ from src.core.llm.base import Message
 from src.core.memory.embeddings import Embedder, cosine
 
 PERSONA_DIR = Path(__file__).resolve().parent
-RETRIEVABLE = frozenset({"aired", "trailer", "clip"})
-ERA_WEIGHT = {"visionquest": 1.0, "age_of_ultron": 0.43}  # roughly a 70/30 split of picks
+QUOTABLE = frozenset({"aired", "trailer", "clip"})
+"""Statuses whose text is Ultron's own line and may be used once per chat as a callback."""
+RETRIEVABLE = QUOTABLE | {"style"}
+"""Statuses whose example turns may be retrieved as style anchors."""
+ERA_WEIGHT = {"visionquest": 1.0, "age_of_ultron": 0.43, "reddington_inspired": 0.75}
+"""VisionQuest leads and Age of Ultron supplies worldview. A Reddington move must be clearly the
+closer fit to win (a third closer than the best canon anchor), and at most one is used per reply."""
+MAX_STYLE_PER_TURN = 1
+BANK_FILES = ("quotes_visionquest.md", "quotes_age_of_ultron.md", "inspiration_reddington.md")
 _FENCE = re.compile(r"```yaml\s*\n(.*?)\n```", re.S)
 
 
@@ -42,8 +57,13 @@ class Anchor:
 
     @property
     def retrievable(self) -> bool:
-        """Only aired, trailer, and clip entries with an example may be retrieved."""
+        """Quote and style entries with an example may be retrieved; unverified never."""
         return self.status in RETRIEVABLE and bool(self.example_ultron and self.text)
+
+    @property
+    def quotable(self) -> bool:
+        """True only for Ultron's own verified lines (style entries never are)."""
+        return self.status in QUOTABLE and self.retrievable
 
     @property
     def embed_text(self) -> str:
@@ -78,9 +98,9 @@ def parse_bank(markdown: str) -> list[Anchor]:
 
 
 def load_banks(directory: Path = PERSONA_DIR) -> list[Anchor]:
-    """Load both quote banks."""
+    """Load the quote banks and the style bank."""
     anchors: list[Anchor] = []
-    for name in ("quotes_visionquest.md", "quotes_age_of_ultron.md"):
+    for name in BANK_FILES:
         path = directory / name
         if path.exists():
             anchors.extend(parse_bank(path.read_text("utf-8")))
@@ -129,7 +149,17 @@ class AnchorIndex:
             key=lambda pair: pair[0],
             reverse=True,
         )
-        return [a for _, a in scored[:k]]
+        picked: list[Anchor] = []
+        style = 0
+        for _, anchor in scored:
+            if anchor.status == "style":
+                if style >= MAX_STYLE_PER_TURN:
+                    continue
+                style += 1
+            picked.append(anchor)
+            if len(picked) == k:
+                break
+        return picked
 
     def example_turns(self, anchors: list[Anchor]) -> list[Message]:
         """Pre-filled example turns (operator prompt, Ultron reply) for the prompt."""
