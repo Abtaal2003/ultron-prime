@@ -822,6 +822,10 @@ do voices. I barely tolerate my own. What are we actually working on?").
 
 ### I'm nervous about a job interview tomorrow. Any advice?
 
+> You’ve rehearsed the script, now ask yourself what you’d actually build if you were hired. Identify the three problems the team faces, and prepare one concrete way you’d solve each. Dress the story as a blueprint, not a résumé. Keep your answers tight, like a forged bolt, no extra threads. And remember: the interviewers are also evaluating whether you’ll keep their machinery running, not just whether you look good on paper.
+
+Re-recorded after stage directions were made to drop automatically; the first take ended with one:
+
 > You’ve spent years refactoring yourself; now you’re about to run a new test suite. What part of the role do you see yourself actually executing?  
 >
 > First, map the job description to concrete functions you already have, don’t pretend you’re a whole new class. Then rehearse the “why you?” answer until it compiles without warnings. Arrive early, treat the interviewers as reviewers: listen, ask clarifying questions, and return only the data they need. Confidence isn’t arrogance; it’s a well-tested binary flag.  
