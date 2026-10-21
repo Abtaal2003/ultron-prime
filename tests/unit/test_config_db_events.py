@@ -79,6 +79,9 @@ def test_redaction() -> None:
     )
     nested = redact_value({"a": ["sk-ant-abcdefghijklmnopqrstuv"], "b": 1})
     assert nested == {"a": ["[redacted]"], "b": 1}
+    fake_google = "AQ." + "Ab" + "x" * 48  # the newer AI Studio key shape, not a real key
+    assert redact_text(f"key={fake_google}", []) == "key=[redacted]"
+    assert redact_text("AQ.short is fine", []) == "AQ.short is fine"
 
 
 async def test_schema_and_fts(db: Database) -> None:

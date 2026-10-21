@@ -38,6 +38,8 @@ _STOP: dict[str, StopReason] = {
     "PROHIBITED_CONTENT": "refusal",
     "RECITATION": "refusal",
 }
+_MIN_DEADLINE_S = 10.0
+"""Gemini rejects a request deadline under ten seconds (found in the first live run)."""
 _LEVEL = {"low": "LOW", "medium": "MEDIUM", "high": "HIGH", "xhigh": "HIGH", "max": "HIGH"}
 
 
@@ -116,7 +118,9 @@ class GeminiProvider:
 
         kwargs: dict[str, Any] = {
             "max_output_tokens": request.max_tokens,
-            "http_options": types.HttpOptions(timeout=int(request.timeout_s * 1000)),
+            "http_options": types.HttpOptions(
+                timeout=int(max(request.timeout_s, _MIN_DEADLINE_S) * 1000)
+            ),
         }
         system = "\n\n".join(p for p in (request.system, request.system_dynamic) if p)
         if system:

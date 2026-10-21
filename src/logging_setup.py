@@ -23,6 +23,7 @@ SECRET_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"sk-[A-Za-z0-9]{32,}"),
     re.compile(r"gsk_[A-Za-z0-9]{20,}"),
     re.compile(r"AIza[0-9A-Za-z_\-]{30,}"),
+    re.compile(r"\bAQ\.[0-9A-Za-z_\-]{40,}"),  # newer Google AI Studio keys
     re.compile(r"tvly-[A-Za-z0-9\-]{16,}"),
     re.compile(r"gh[pousr]_[A-Za-z0-9]{30,}"),
     re.compile(r"AKIA[0-9A-Z]{16}"),

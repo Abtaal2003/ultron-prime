@@ -908,3 +908,12 @@ async def test_system_dynamic_is_placed_after_the_cache_breakpoint() -> None:
     )
     instruction = gem.calls[0]["config"].system_instruction
     assert instruction.index("STATIC") < instruction.index("DYNAMIC")
+
+
+def test_gemini_deadline_never_below_the_api_minimum() -> None:
+    """The live API refuses deadlines under 10s; the guard asks for 8."""
+    provider = GeminiProvider("k", client=FakeGemini(_gem_reply("ok")))
+    short = provider.build_config(_req(model="g").model_copy(update={"timeout_s": 8}))
+    long = provider.build_config(_req(model="g").model_copy(update={"timeout_s": 30}))
+    assert short.http_options.timeout == 10_000
+    assert long.http_options.timeout == 30_000

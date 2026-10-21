@@ -7,7 +7,7 @@ updated on 2026-10-20 after adding tracing and the spending cap.
 |---|---|
 | `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT) | clean |
 | `mypy` strict on `src`, `redteam`, `evals` | clean, 120 files |
-| `pytest --cov` | 852 passed, 1 skipped (no `ping` binary), coverage 91.02 percent (gate 85) |
+| `pytest --cov` | 853 passed, 1 skipped (no `ping` binary), coverage 91.03 percent (gate 85) |
 | Web: eslint (max warnings 0), `tsc --noEmit`, vitest | clean, 27 tests |
 | Web: `vite build` (PWA) | builds |
 | Playwright, Chromium desktop and phone profiles, axe accessibility | 32 passed, 4 skipped (phone-only specs on the desktop profile) |
@@ -95,3 +95,19 @@ Results over the five rerecorded replies: metal imagery in one (previously five 
 dashes in none. The other four prompts (the quote, humans,
 the bank and the Rust rewrite) hit the daily token limit and are still to be rerecorded; their
 first-run replies are kept in [live-samples.md](live-samples.md).
+
+### Third run, on Gemini
+
+Those four prompts and the README screenshots were then recorded on Gemini
+(`gemini-3.8-flash` main, `gemini-3.5-flash-lite` guard and helpers), the first live use of the
+Gemini adapter. It found one bug:
+
+* **Every guard call failed on Gemini.** The guard asks for an 8 second deadline and the Gemini
+  API refuses any deadline under 10 seconds, so the guard fell back to strict rules on every
+  turn. The adapter now never sends less than 10 seconds.
+
+After the fix: four of four replies in character, the bank question reframed rather than refused,
+no em dashes and no metal imagery. Painting imagery appeared in all three replies about humans
+(the table's and two screenshot takes), each within the per-reply limit; it is the family to
+watch next. The model returned
+occasional "high demand" 503 errors, which the retries absorbed.
