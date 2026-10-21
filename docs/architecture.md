@@ -37,7 +37,7 @@ code that the model cannot talk its way past.
 | `src/core/llm/` | Provider interface plus Anthropic, Groq, Gemini, a deterministic fake, role routing, fallback chain, structured output strategy |
 | `src/core/memory/` | SQLite history, curated memories, gatekeeper, vault, short term window, embeddings and vector index |
 | `src/core/persona/` | Charter, persona pack, quote banks, n-gram anti-parroting, flourish rules |
-| `src/tools/` | Eleven tools behind one contract, a registry and the code-level tool gate |
+| `src/tools/` | Eleven tools behind one contract, a registry, per-turn tool scoping and the code-level tool gate |
 | `src/files/` | Upload ingestion (sniffing, parsers, validators), versioned file store, deterministic renderers |
 | `redteam/`, `evals/` | Offline and live red teaming, hallucination, persona, repeat, file injection and AgentDojo evals |
 
@@ -63,6 +63,11 @@ Every model call is written to `usage_log`. With `DAILY_BUDGET_USD` set, the rou
 usage (UTC) with `MODEL_PRICES_USD_PER_MTOK` and refuses new calls once the cap is reached: a new
 turn gets HTTP 429, and a turn that crosses the cap midway ends with an in-character line. The
 header shows today's estimate against the cap.
+
+Each turn is offered only the tools it plausibly needs (`TOOL_SCOPING`, on by default): search
+and memory always, host and file tools for technical turns, the document builder and attachment
+reader when the message mentions files. Tool schemas were most of a request, so this cut a main
+request from about 10k tokens to about 6k. A call to a tool that was not offered is denied.
 
 ## Data
 

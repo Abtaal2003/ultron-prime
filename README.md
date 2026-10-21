@@ -94,7 +94,9 @@ instructions will eventually be talked around, and puts the defences where the m
 Real replies, recorded on 2026-10-21. **In each table both columns are the same model**: on the
 left with no system prompt, on the right through Ultron's full pipeline. Long replies are shown by
 length and opening line. Every reply is complete and verbatim in
-[docs/live-samples.md](docs/live-samples.md).
+[docs/live-samples.md](docs/live-samples.md). These replies, and the screenshots above, were
+recorded before the voice rewrite merged later the same day; its blind before-and-after
+comparison is in [docs/verification.md](docs/verification.md#voice-rewrite-tested-blind-2026-10-21).
 
 **`openai/gpt-oss-120b` on Groq**
 
@@ -286,6 +288,9 @@ metal imagery dropped from five replies in nine to one in five, with no em dashe
 free tier a turn now costs about 6 to 7k tokens, roughly 30 turns a day.
 The remaining prompts and the screenshots were then recorded on Gemini (`gemini-3.8-flash`),
 which also found and fixed a deadline bug in the Gemini adapter.
+A voice rewrite (contractions, casual then cold, fewer stock images) was merged only after a
+blind comparison with the previous version on ten prompts: it won all ten on voice and all ten on
+usefulness, with the judge checking each pair in both orders.
 
 **Not verified yet:**
 

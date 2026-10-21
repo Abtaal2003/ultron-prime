@@ -55,6 +55,16 @@ about limits), those moves are used deliberately, as a project choice:
 * Left out because they break the persona's rules: his secrecy and withheld information, long
   anecdotes, invented personal history, and anything criminal.
 
+## Voice
+
+The persona prose and every example reply are written in Spader's register: conversational,
+contractions by default, casual on the surface and cold in one exact line. Models copy the
+register of their instructions more than the rules inside them, so the text itself sets the
+voice; vivid catchphrases are kept out of it, because any phrase there gets repeated (canon lines
+live only in the quote banks, where retrieval rations them). Changes to the voice are merged
+only after a blind before-and-after comparison; see
+[verification.md](verification.md#voice-rewrite-tested-blind-2026-10-21).
+
 ## Imagery
 
 Signature images (the house, painting, evolution, the ship, metal) are rationed per chat by
