@@ -31,6 +31,12 @@ S1E04 and rechecked every line:
   Ultron* lines whose wording could not be found ("I was designed to save the world.", "Don't
   compare me with Stark!").
 * Added three *Age of Ultron* lines found verbatim on Wikiquote, two of which the show calls back.
+* A second pass over S1E04 the same day added three more lines: one the transcript labels as
+  Ultron's, and two it leaves unlabelled but a recap names as his ("You get to be the next
+  version of who you once were.", "The power of code compels you!"). Two more are kept as
+  `unverified`: "Or so the best liars tell themselves." (no second source yet) and "I am what I
+  am." (speaker unclear). Search-engine AI summaries of this episode misquote several lines (for
+  example "I simply am who I am", which is not in the episode), so they are never used as a source.
 
 Sources are fan transcripts and recaps, so wording should still be checked against the episode
 audio before quoting publicly.
