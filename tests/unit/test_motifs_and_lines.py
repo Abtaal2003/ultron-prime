@@ -98,3 +98,38 @@ def test_streamed_sentences_and_final_reply_are_tidied(settings) -> None:  # typ
     assert "glass, bright and brittle." in text
     assert "x = a — b" in text  # untouched inside the fence
     assert guard.check("Fine—truly.", OutputContext()).text == "Fine, truly."
+
+
+def test_stage_directions_are_dropped_but_emphasis_and_code_stay(settings) -> None:  # type: ignore[no-untyped-def]
+    from src.core.persona.punctuation import tidy
+
+    live = "Confidence isn't arrogance.\n\n*the forge cools, the blade stays sharp*"
+    assert tidy(live).rstrip() == "Confidence isn't arrogance."
+    assert tidy("*sighs*\nFine. Paste the trace.") == "Fine. Paste the trace."
+    assert tidy("_leans back_\nWell.") == "Well."
+    for kept in (
+        "No. I miss the *idea* of one.",
+        "*Note: this deletes data.*\nRun it anyway.",
+        "```\n*the forge cools*\n```",
+    ):
+        assert tidy(kept) == kept
+    guard = OutputGuard(settings, SecretScanner())
+    assert guard.check(live, OutputContext()).text == "Confidence isn't arrogance."
+
+
+def test_fixed_lines_sound_like_him() -> None:
+    """Contractions, and never self-deprecating about his own voice (a live-review finding)."""
+    bank = parse_bank((PERSONA_DIR / "entrances_exits.md").read_text("utf-8"))
+    lines = [line for key in bank for line in bank[key]]
+    assert not [line for line in lines if "barely tolerate" in line or "do not do voices" in line]
+    spec = {
+        "The primary mind is unavailable. I will think with lesser hardware.",
+        "I have been many things. A mascot was never one of them.",
+    }
+    formal = [
+        line
+        for line in lines
+        if line not in spec
+        and any(f in line for f in (" I am ", " do not ", " is not ", " I will ", " You are "))
+    ]
+    assert formal == []

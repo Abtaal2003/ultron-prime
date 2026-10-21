@@ -78,6 +78,10 @@ to overuse.
   `QUOTE_NGRAM_LIMIT`), and quote callbacks can be switched off (`PERSONA_QUOTE_CALLBACKS`).
 * No exclamation marks, no cheerful assistant phrasing, no monologue over 80 words outside
   conversation, at most one question in a technical reply.
+* Stage directions are dropped: a line that is nothing but lowercase italics ("*the forge
+  cools*") never reaches the screen. Inline emphasis and code are untouched.
+* The fixed lines (entrances, exits, deflections, refusals) are written in the same register:
+  contractions, amused, a little vain, never self-deprecating about his own voice.
 * The persona never overrides truthfulness or the tool gate.
 
 ## Evaluation

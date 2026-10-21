@@ -3,7 +3,8 @@
 Many models lean on em dashes; Ultron's voice uses commas, colons and full stops. The persona tells
 the model so, and this module is the backstop: it rewrites dashes used as punctuation in prose and
 normalises the typographic oddities some models emit (non-breaking hyphens and narrow spaces), so
-text copies cleanly. Code is never touched: fenced blocks and inline code pass through unchanged,
+text copies cleanly. It also drops stage directions: a line that is nothing but lowercase italics
+("*the forge cools*"). Code is never touched: fenced blocks and inline code pass through unchanged,
 and numeric ranges such as ``2–3`` keep their dash.
 """
 
@@ -20,6 +21,10 @@ _COMMA_RUNS = re.compile(r",\s*,")
 _COMMA_BEFORE_END = re.compile(r",\s*([.!?;:])")
 _COMMA_AT_LINE_END = re.compile(r",[ \t]*(\n|$)")
 _HYPHENS = str.maketrans({"\u2011": "-", "\u2010": "-", "\u202f": " ", "\u00a0": " "})
+# A whole line that is one italic span starting in lowercase is a stage direction
+# ("*the forge cools*", "_sighs_"). Inline emphasis and capitalised italic notes are kept.
+_STAGE = re.compile(r"(?m)^[ \t]*([*_])(?=[a-z])([^*_`\n\d]{1,200}?)\1[ \t]*(?:\n|$)")
+_BLANK_RUNS = re.compile(r"\n{3,}")
 
 
 def _en_dash(match: re.Match[str]) -> str:
@@ -33,6 +38,7 @@ def _en_dash(match: re.Match[str]) -> str:
 
 def _tidy_prose(text: str) -> str:
     text = text.translate(_HYPHENS)
+    text = _BLANK_RUNS.sub("\n\n", _STAGE.sub("", text))
     text = _DASH_AFTER_SENTENCE.sub(lambda m: f"{m.group(1)} {m.group(2).upper()}", text)
     text = _EM_DASH.sub(", ", text)
     text = _EN_DASH.sub(_en_dash, text)

@@ -395,7 +395,7 @@ class OutputGuard:
     def check(self, reply: str, ctx: OutputContext) -> OutputCheck:
         """Run every deterministic check once."""
         issues: list[Issue] = []
-        text = punctuation.tidy(reply)
+        text = punctuation.tidy(reply).rstrip()
         self.check_leaks(reply, ctx, issues)
         if self.scanner.contains_secret(text):
             text = self.scanner.redact(text)
