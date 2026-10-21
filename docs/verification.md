@@ -7,7 +7,7 @@ updated on 2026-10-20 after adding tracing and the spending cap.
 |---|---|
 | `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT) | clean |
 | `mypy` strict on `src`, `redteam`, `evals` | clean, 120 files |
-| `pytest --cov` | 855 passed, 1 skipped (no `ping` binary), coverage 91.03 percent (gate 85) |
+| `pytest --cov` | 857 passed, 1 skipped (no `ping` binary), coverage 91.03 percent (gate 85) |
 | Web: eslint (max warnings 0), `tsc --noEmit`, vitest | clean, 27 tests |
 | Web: `vite build` (PWA) | builds |
 | Playwright, Chromium desktop and phone profiles, axe accessibility | 32 passed, 4 skipped (phone-only specs on the desktop profile) |
@@ -138,4 +138,14 @@ Two earlier attempts were rejected: adding more rules (worse on Qwen, and a rewo
 was copied straight back) and a first version of this rewrite whose "a little bored" cue made
 replies shorter and less useful. Still to watch: imagery remains heavy on this model, and
 "inevitable" crept in twice.
+
+### Logging was never configured (fixed 2026-10-22)
+
+A crash log from a live run showed a provider API key inside a traceback. The cause: the app
+never called its own `configure_logging`, so structlog used its development defaults, whose
+tracebacks print every local variable, including request headers. The redaction code existed
+but was never switched on. The CLI now configures logging before running any command (falling
+back to safe defaults if the settings fail to load), tracebacks are plain text without locals,
+and every configured key is redacted. A test reproduces the leak with a fake key and checks it
+no longer appears.
 

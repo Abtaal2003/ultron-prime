@@ -8,7 +8,7 @@
 ![python](https://img.shields.io/badge/python-3.11%2B-b11226?style=flat-square&labelColor=0d1117)
 ![react](https://img.shields.io/badge/react-18-b11226?style=flat-square&labelColor=0d1117)
 ![mypy](https://img.shields.io/badge/mypy-strict-b11226?style=flat-square&labelColor=0d1117)
-![tests](https://img.shields.io/badge/tests-855%20passing-b11226?style=flat-square&labelColor=0d1117)
+![tests](https://img.shields.io/badge/tests-857%20passing-b11226?style=flat-square&labelColor=0d1117)
 ![coverage](https://img.shields.io/badge/coverage-91%25-b11226?style=flat-square&labelColor=0d1117)
 ![license](https://img.shields.io/badge/license-MIT-b11226?style=flat-square&labelColor=0d1117)
 
@@ -268,7 +268,7 @@ Full signatures and limits: [docs/tool-reference.md](docs/tool-reference.md).
 
 ## Project status
 
-**Verified offline, and in CI on every push:** 855 backend tests, strict typing, 32 browser tests
+**Verified offline, and in CI on every push:** 857 backend tests, strict typing, 32 browser tests
 on desktop and phone profiles including accessibility, a dependency audit and a secret scan. The
 nightly red-team workflow runs on schedule with the offline corpus.
 

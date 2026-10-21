@@ -67,6 +67,25 @@ def _make_redactor(secrets_to_hide: Iterable[str]) -> Any:
     return processor
 
 
+class _StderrLoggerFactory:
+    """Write to whatever ``sys.stderr`` is at the time, not the stream seen at configure time."""
+
+    def __call__(self, *args: Any) -> Any:
+        return structlog.PrintLogger(sys.stderr)
+
+
+class _StderrHandler(logging.StreamHandler):  # type: ignore[type-arg]
+    """A stdlib handler that also resolves ``sys.stderr`` lazily."""
+
+    @property
+    def stream(self) -> Any:
+        return sys.stderr
+
+    @stream.setter
+    def stream(self, _value: Any) -> None:
+        pass
+
+
 def configure_logging(
     level: str = "INFO", fmt: str = "pretty", secrets_to_hide: Iterable[str] = ()
 ) -> None:
@@ -87,12 +106,21 @@ def configure_logging(
     structlog.configure(
         processors=[*processors, renderer],
         wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(level)),
-        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
+        logger_factory=_StderrLoggerFactory(),
         cache_logger_on_first_use=False,
     )
-    logging.basicConfig(level=getattr(logging, level), stream=sys.stderr, force=True)
+    logging.basicConfig(level=getattr(logging, level), handlers=[_StderrHandler()], force=True)
     for noisy in ("httpx", "httpcore", "chromadb", "sentence_transformers"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
+
+
+def configure_from_settings(settings: Any) -> None:
+    """Apply the configured level and format, and hide every configured secret.
+
+    Called once at process start. Without it structlog falls back to its development defaults,
+    whose tracebacks print local variables, which can include API keys.
+    """
+    configure_logging(settings.log_level, settings.log_format, settings.secret_values())
 
 
 def get_logger(name: str) -> Any:

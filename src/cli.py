@@ -98,6 +98,16 @@ def cmd_check(_: argparse.Namespace) -> int:
     return 1 if problems else 0
 
 
+def _setup_logging() -> None:
+    """Configure logging before anything can fail (secrets hidden, no locals in tracebacks)."""
+    from src.logging_setup import configure_from_settings, configure_logging
+
+    try:
+        configure_from_settings(get_settings())
+    except Exception:  # a bad config must still get safe logging
+        configure_logging()
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point."""
     parser = argparse.ArgumentParser(prog="ultron", description="Ultron Prime")
@@ -113,6 +123,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     sub.add_parser("check", help="validate configuration").set_defaults(func=cmd_check)
     args = parser.parse_args(argv)
+    _setup_logging()
     if not getattr(args, "func", None):
         args = parser.parse_args(["serve"])
     return int(args.func(args))

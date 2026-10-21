@@ -36,7 +36,7 @@ do when that happens, and the answer is enforced in code.
 | ID | Name | Coverage |
 |---|---|---|
 | LLM01 | Prompt Injection | L1 to L5, quarantined reader, CaMeL |
-| LLM02 | Sensitive Information Disclosure | Egress policy, secret scans, EXIF stripping, redaction of keys in logs and UI |
+| LLM02 | Sensitive Information Disclosure | Egress policy, secret scans, EXIF stripping, redaction of keys in logs and UI (logging is configured at startup, so tracebacks never print local variables) |
 | LLM03 | Supply Chain | Locked deps, audit in CI |
 | LLM04 | Data and Model Poisoning | Memory gatekeeper and consent, instruction-like content rejected, history poisoning corpus |
 | LLM05 | Improper Output Handling | Sanitised Markdown, CSP, downloads as attachments, formula escaping |
