@@ -111,3 +111,31 @@ no em dashes and no metal imagery. Painting imagery appeared in all three replie
 (the table's and two screenshot takes), each within the per-reply limit; it is the family to
 watch next. The model returned
 occasional "high demand" 503 errors, which the retries absorbed.
+
+### Voice rewrite, tested blind (2026-10-21)
+
+The persona prose and all 35 example replies were rewritten in Spader's register (contractions,
+casual then cold, fewer stock images), with no new rules and a slightly shorter prompt. It was
+merged only after a blind comparison with the previous version, with the pass rule set in
+advance: more voice wins, no loss of usefulness, contractions kept, no rise in repeated phrases.
+
+Setup: ten prompts, each in its own chat, on `openai/gpt-oss-120b` (Groq) for both versions,
+guard on `gpt-oss-20b`. Judge `qwen/qwen3.8-27b`, a different model family, told that reusing
+famous lines counts against a reply. Every pair was judged in both orders and a win only counts
+when both orders agree.
+
+| | Before | After |
+|---|---|---|
+| Voice, consistent wins | 0 | 10 |
+| Usefulness, consistent wins | 0 | 10 |
+| Share of contractions | 0.50 | 0.94 |
+| Replies ending on a question | 6 | 4 |
+| Repeated openings across chats | 1 | 0 |
+| Replies with metal imagery | 2 | 3 |
+| Stock villain words ("inevitable") | 0 | 2 |
+
+Two earlier attempts were rejected: adding more rules (worse on Qwen, and a reworded catchphrase
+was copied straight back) and a first version of this rewrite whose "a little bored" cue made
+replies shorter and less useful. Still to watch: imagery remains heavy on this model, and
+"inevitable" crept in twice.
+
