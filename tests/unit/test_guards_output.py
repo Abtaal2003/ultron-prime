@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -146,12 +147,12 @@ def test_file_claims_must_match_writes(guard: OutputGuard) -> None:
 
 def test_parroting_example_turns_and_quotes(guard: OutputGuard) -> None:
     banks = load_banks()
-    ex = next(a for a in banks if a.id == "vq-09")
+    ex = next(a for a in banks if a.id == "vq-14")
     copied = guard.check(ex.example_ultron, _ctx(banks=banks))
     assert "quote_parroting" in names(copied)
-    quote = next(a for a in banks if a.id == "vq-09").text
+    quote = next(a for a in banks if a.id == "vq-14").text
     first = guard.check(f"As I once put it: {quote}", _ctx(banks=banks))
-    assert first.callback_used == "vq-09" and "quote_parroting" not in names(first)
+    assert first.callback_used == "vq-14" and "quote_parroting" not in names(first)
     used = guard.check(
         f"As I once put it: {quote}", _ctx(banks=banks, persona=PersonaState(callback_used=True))
     )
@@ -161,9 +162,15 @@ def test_parroting_example_turns_and_quotes(guard: OutputGuard) -> None:
         _ctx(banks=banks, operator_asked_quote=True, persona=PersonaState(callback_used=True)),
     )
     assert asked.issues == []
-    ao07 = next(a for a in banks if a.id == "ao-07").text
-    again = guard.check(ao07, _ctx(banks=banks, persona=PersonaState(ao07_used=True)))
+    # The once-per-chat temper rule still works for ao-07 when it is retrievable...
+    ao07 = next(a for a in banks if a.id == "ao-07")
+    verified = replace(ao07, status="aired")
+    pool = [verified if a.id == "ao-07" else a for a in banks]
+    again = guard.check(ao07.text, _ctx(banks=pool, persona=PersonaState(ao07_used=True)))
     assert "quote_parroting" in names(again)
+    # ...but an unverified line is never recognised or offered as a quote.
+    plain = guard.check(ao07.text, _ctx(banks=banks, persona=PersonaState(ao07_used=True)))
+    assert plain.callback_used is None and "quote_parroting" not in names(plain)
 
 
 def test_persona_limits_are_enforced_here(guard: OutputGuard) -> None:

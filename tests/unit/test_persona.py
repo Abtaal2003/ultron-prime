@@ -22,9 +22,14 @@ from src.core.persona.ngram import overlapping, window_for, words
 
 def test_banks_load_and_unverified_are_excluded() -> None:
     banks = load_banks()
-    assert len(banks) == 20
+    assert len(banks) == 32
     retrievable = [a for a in banks if a.retrievable]
-    assert {a.id for a in banks} - {a.id for a in retrievable} == {"vq-07", "vq-08"}
+    assert {a.id for a in banks} - {a.id for a in retrievable} == {
+        "vq-08",
+        "vq-09",
+        "ao-06",
+        "ao-07",
+    }
     assert all(a.status != "unverified" for a in retrievable)
     assert all(a.example_ultron and a.example_user for a in retrievable)
 
@@ -42,10 +47,10 @@ def test_embed_text_uses_situation_and_move_not_the_quote() -> None:
 async def test_retrieval_matches_situation_and_weights_eras() -> None:
     index = AnchorIndex(HashingEmbedder())
     got = await index.retrieve(
-        "my project keeps growing", tags=["clutter", "many_dependencies"], k=3
+        "the database is being backed up and cloned", tags=["backups", "cloning"], k=3
     )
     assert got and len(got) <= 3
-    assert any(a.id == "vq-09" for a in got)
+    assert any(a.id == "vq-18" for a in got)
     only = await index.retrieve("anything", k=2, exclude_ids={a.id for a in index.anchors[:-1]})
     assert len(only) == 1
     assert await index.retrieve("x", k=0) == []
@@ -115,7 +120,8 @@ def test_loader_hashes_charter_and_parses_pairs(settings: Settings) -> None:
     pack = load_persona(settings)
     expected = hashlib.sha256((PERSONA_DIR / "charter.md").read_bytes()).hexdigest()
     assert pack.charter_sha256 == expected
-    assert pack.canon_through == "S1E02"
+    assert pack.canon_through == "S1E04"
+    assert pack.persona_meta["version"] == 4
     assert pack.persona_meta["edition"] == "visionquest"
     assert len(pack.contrast_pairs) >= 10
     assert all(p.operator and p.generic and p.ultron for p in pack.contrast_pairs)

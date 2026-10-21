@@ -146,7 +146,7 @@ class Settings(BaseSettings):
     probe_cooldown_threshold: int = Field(3, ge=2)
 
     # --- Persona ------------------------------------------------------------------------------
-    persona_canon_through: str = "S1E02"
+    persona_canon_through: str = ""  # empty: use the persona file's canon_through
     persona_profanity: Literal["sparing", "off"] = "sparing"
     persona_quote_callbacks: bool = True
     persona_era_weight_visionquest: float = Field(0.7, ge=0, le=1)

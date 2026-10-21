@@ -69,7 +69,7 @@ A fabrication should reach the operator 0 times; a grounded control must still p
 
 ## Persona (offline)
 
-Persona `3`, canon through `S1E02`, 11 contrast replies, hashing embedder.
+Persona `4`, canon through `S1E04`, 11 contrast replies, hashing embedder.
 
 - Style scorer ranks the Ultron reply above the generic one in 100% of pairs.
 - Canon checklist pass: 11/11 (100.0%, 95% CI 74.1% to 100.0%).

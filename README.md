@@ -102,7 +102,8 @@ the left column gets pulled back.
 | I finally merged the payments branch. | Congratulations! That's a big milestone. | Merged, and green on the first run. I would call it proud if I were the sort. Now write the migration notes you have been avoiding. |
 
 The persona never outranks the truth or the tool gate. Canon is tracked through *VisionQuest*
-episode 2 and nothing later is used.
+episode 4 and nothing later is used. Quotes are checked against episode transcripts; see
+[docs/persona.md](docs/persona.md).
 
 ## How a turn works
 

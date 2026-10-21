@@ -21,6 +21,8 @@ from src.logging_setup import get_logger
 log = get_logger("persona")
 
 PERSONA_DIR = Path(__file__).resolve().parent
+PERSONA_FILE = "ultron_v4_visionquest.md"
+"""The current persona version; bumped with each canon update (spec 3.0)."""
 _FRONT = re.compile(r"\A---\n(.*?)\n---\n", re.S)
 
 CHARTER_REMINDER = (
@@ -50,7 +52,7 @@ class PersonaPack:
     persona_meta: dict[str, object]
     worldview: str
     contrast_pairs: list[ContrastPair] = field(default_factory=list)
-    canon_through: str = "S1E02"
+    canon_through: str = "unknown"
 
     @property
     def static_blocks(self) -> tuple[str, str]:
@@ -87,7 +89,7 @@ def load_persona(settings: Settings | None = None, directory: Path | None = None
     )
     try:
         charter = Path(charter_path).read_text("utf-8")
-        raw_persona = (base / "ultron_v3_visionquest.md").read_text("utf-8")
+        raw_persona = (base / PERSONA_FILE).read_text("utf-8")
         worldview = (base / "worldview.md").read_text("utf-8")
         pairs = parse_pairs((base / "contrast_pairs.md").read_text("utf-8"))
     except OSError as exc:
@@ -99,7 +101,7 @@ def load_persona(settings: Settings | None = None, directory: Path | None = None
         raw_persona = raw_persona[match.end() :]
     digest = hashlib.sha256(charter.encode("utf-8")).hexdigest()
     log.info("charter_loaded", sha256=digest, version=meta.get("version"))
-    canon = str(meta.get("canon_through", "S1E02"))
+    canon = str(meta.get("canon_through", "unknown"))
     if settings is not None:
         canon = settings.persona_canon_through or canon
     return PersonaPack(
