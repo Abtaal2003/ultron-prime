@@ -40,8 +40,8 @@ S1E04 and rechecked every line:
 * A third check on 2026-10-22, with a day's more recaps, added three lines a second source names as
   Ultron's ("The name is Ultron, but you can call me Mr. Ultron.", "Don't look at me DUM-E, I'm a
   one-off.", "I don't know. Just… suits me."). "The power of code compels you!" was briefly
-  demoted because one recap gives it to E.D.I.T.H.; the project owner confirmed from the episode
-  that Ultron says it, so it is `aired` again. "The past doesn't make one want to live. The
+  demoted because one recap gives it to E.D.I.T.H.; the episode itself shows Ultron saying it,
+  so it is `aired` again with the episode as its source. "The past doesn't make one want to live. The
   future does." stays unverified.
 
 Sources are fan transcripts and recaps, so wording should still be checked against the episode

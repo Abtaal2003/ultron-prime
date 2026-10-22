@@ -250,7 +250,7 @@ kept as a paraphrased beat in the persona file unless a second source names Ultr
 - id: vq-25
   era: visionquest
   status: aired
-  source: "VisionQuest S1E04 'Malware' (transcript, speaker unlabelled; confirmed as Ultron's by the project owner from the episode on 2026-10-22, agreeing with Litehouse Media; With Ashley and Co gives it to E.D.I.T.H.)"
+  source: "VisionQuest S1E04 'Malware' (the episode: Ultron says it on screen; the fan transcript leaves it unlabelled and one recap misattributes it to E.D.I.T.H.)"
   register: [child, psychopath]
   situation_tags: [force_through, override, hack, stubborn_process]
   move: "Theatrical glee while forcing something stubborn to obey"
