@@ -166,3 +166,13 @@ def test_made_up_ids_and_sources_are_sent_back(settings) -> None:  # type: ignor
         guard.check("I can't check that right now; search is unavailable.", OutputContext()).issues
         == []
     )
+
+
+def test_register_labels_never_reach_the_screen() -> None:
+    from src.core.persona.punctuation import tidy
+
+    live = "Father: You finally gave the ledger a name.  \nTherapist: Which part still hurts?"
+    assert tidy(live) == "You finally gave the ledger a name.  \nWhich part still hurts?"
+    assert tidy("**Child:** The kettle's slow.") == "The kettle's slow."
+    for kept in ("My father: a long story.", "A child process exited.", "`therapist: x`"):
+        assert tidy(kept) == kept

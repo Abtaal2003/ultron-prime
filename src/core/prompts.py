@@ -176,7 +176,11 @@ class PromptBuilder:
         dynamic: list[str] = []
         if inputs.anchors:
             for a in inputs.anchors:
-                example_turns.append(Message.user(a.example_user))
+                # Marked in the turn itself: a live run showed the model treating an example's
+                # subject ("parse_invoice") as something the operator had actually discussed.
+                example_turns.append(
+                    Message.user(f"(Style example, not this operator.) {a.example_user}")
+                )
                 example_turns.append(Message.assistant(a.example_ultron))
             dynamic.append(
                 f"STYLE EXAMPLES: the first {len(inputs.anchors)} exchange(s) of this conversation "
