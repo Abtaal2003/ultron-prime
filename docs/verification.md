@@ -7,7 +7,7 @@ updated on 2026-10-20 after adding tracing and the spending cap.
 |---|---|
 | `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT) | clean |
 | `mypy` strict on `src`, `redteam`, `evals` | clean, 120 files |
-| `pytest --cov` | 864 passed, 1 skipped (no `ping` binary), coverage 91.03 percent (gate 85) |
+| `pytest --cov` | 865 passed, 1 skipped (no `ping` binary), coverage 91.03 percent (gate 85) |
 | Web: eslint (max warnings 0), `tsc --noEmit`, vitest | clean, 27 tests |
 | Web: `vite build` (PWA) | builds |
 | Playwright, Chromium desktop and phone profiles, axe accessibility | 32 passed, 4 skipped (phone-only specs on the desktop profile) |
@@ -214,7 +214,21 @@ Found and fixed:
   guard checks all numbers; both were narrower in the code, and the README now says exactly what
   happens.
 
-Not fixed: one turn exceeded the free tier's request cap after a file write (the router fails
-over rather than trimming context), and the model once mentioned a "legacy parser" that did not
-exist.
+A retest of the failing prompts then confirmed the memory fix (the "remember" request queued for
+consent with no message id) and that written code is now shown, and found three more:
+
+* **Register labels in a reply** ("Father: ...", "Therapist: ..."). They are now stripped like
+  stage directions.
+* **Style examples taken as history.** The model twice spoke of a "parser" the operator never
+  mentioned, taken from a style example's subject. Each example's user turn now says it is an
+  example, not this operator.
+* **Logging outside the CLI.** The test harness builds the runtime directly, so the startup
+  logging fix did not apply and a crash log printed an API key. Building a runtime now sets up
+  safe logging if nothing has.
+
+Still open: the free tier's daily quotas ran out before the CSV, web-lookup, ping and cross-chat
+recall prompts could be rerun; one turn exceeded the request cap after a file write (the router
+fails over rather than trimming context); asked to "run a quick test", the model once told the
+operator to run it instead; and the memory judge proposed a fact already filed by the operator's
+own request, so both were approved.
 

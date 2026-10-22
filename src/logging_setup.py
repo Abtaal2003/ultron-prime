@@ -87,7 +87,11 @@ class _StderrHandler(logging.StreamHandler):  # type: ignore[type-arg]
 
 
 def configure_logging(
-    level: str = "INFO", fmt: str = "pretty", secrets_to_hide: Iterable[str] = ()
+    level: str = "INFO",
+    fmt: str = "pretty",
+    secrets_to_hide: Iterable[str] = (),
+    *,
+    stdlib: bool = True,
 ) -> None:
     """Configure structlog and the stdlib root logger."""
     processors: list[Any] = [
@@ -109,9 +113,27 @@ def configure_logging(
         logger_factory=_StderrLoggerFactory(),
         cache_logger_on_first_use=False,
     )
+    if not stdlib:
+        return
     logging.basicConfig(level=getattr(logging, level), handlers=[_StderrHandler()], force=True)
     for noisy in ("httpx", "httpcore", "chromadb", "sentence_transformers"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
+
+
+def ensure_safe_logging(settings: Any) -> None:
+    """Configure structlog if nothing has yet: secrets hidden, no locals in tracebacks.
+
+    The CLI configures logging at startup, but code that builds a runtime some other way (a
+    script, a test harness, an ASGI server pointed at the app factory) would otherwise get
+    structlog's development defaults, whose tracebacks print local variables such as request
+    headers. A live harness on 2026-10-22 leaked an API key into its own log exactly that way.
+    The standard library's handlers are left alone.
+    """
+    if structlog.is_configured():
+        return
+    configure_logging(
+        settings.log_level, settings.log_format, settings.secret_values(), stdlib=False
+    )
 
 
 def configure_from_settings(settings: Any) -> None:

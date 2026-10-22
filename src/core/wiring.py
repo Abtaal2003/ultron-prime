@@ -45,7 +45,7 @@ from src.core.persona.loader import PersonaPack, load_persona
 from src.core.services import Services
 from src.files.ingest import FileService
 from src.files.store import FileStore
-from src.logging_setup import get_logger
+from src.logging_setup import ensure_safe_logging, get_logger
 from src.tools.catalog import build_registry
 from src.tools.registry import ToolRegistry
 
@@ -105,6 +105,7 @@ async def build_runtime(
     registry: ToolRegistry | None = None,
 ) -> Runtime:
     """Create and connect every component."""
+    ensure_safe_logging(settings)
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.workspace_dir.mkdir(parents=True, exist_ok=True)
     if settings.otel_enabled and not tracing.enabled():
