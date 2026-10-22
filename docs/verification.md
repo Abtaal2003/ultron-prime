@@ -149,3 +149,33 @@ back to safe defaults if the settings fail to load), tracebacks are plain text w
 and every configured key is redacted. A test reproduces the leak with a fake key and checks it
 no longer appears.
 
+### Second voice pass: overused images and questions (2026-10-22)
+
+His instructions named the very things he overused: "what they see" appeared four times (the
+source of his "What do you see...?" habit), and the image families were described with their
+trigger words ("canvas", "alloy", "forging"), repeated in a per-turn note that mentioned metal on
+every turn. All of these were removed; the families are named without example words.
+
+Compared blind against the previous version on the same ten prompts on `openai/gpt-oss-120b`.
+The previous version's replies are its recorded run from the evening before (same model and
+prompts; the stage-direction filter added since changed none of them). Two judges from different
+families, each pair judged in both orders, a win counting only when both orders agree:
+
+| | Before | After |
+|---|---|---|
+| Voice, `qwen/qwen3.8-27b` | 1 | 5 (4 split) |
+| Voice, `gemini-3.7-flash` | 0 | 10 |
+| Usefulness, `qwen/qwen3.8-27b` | 1 | 5 (4 split) |
+| Usefulness, `gemini-3.7-flash` | 2 | 5 (3 split) |
+| "What do you see...?" | 3 | 0 |
+| Replies with metal imagery | 3 | 0 |
+| Replies with painting imagery | 3 | 2 |
+| Stock villain words | 2 | 0 |
+| Replies ending on a question | 4 | 2 |
+| Phrases repeated across chats | 0 | 2 |
+
+Merged under the rule set in advance (both judges prefer the voice, neither finds it less useful,
+the targeted counts do not get worse). Caveats: the two near-identical "what do you think of
+people" prompts opened almost identically in separate chats, and Gemini preferred the previous
+version's usefulness on the code-review and production-outage prompts.
+
