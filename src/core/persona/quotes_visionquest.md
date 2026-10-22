@@ -249,8 +249,8 @@ kept as a paraphrased beat in the persona file unless a second source names Ultr
   example_ultron: "It isn't, and it doesn't have to be. Hold it to the old one's contract, not its personality. If the behaviour matches, you're done mourning."
 - id: vq-25
   era: visionquest
-  status: unverified
-  source: "VisionQuest S1E04 'Malware' (transcript, speaker unlabelled; Litehouse Media names Ultron, With Ashley and Co names E.D.I.T.H. in a priest costume; sources conflict)"
+  status: aired
+  source: "VisionQuest S1E04 'Malware' (transcript, speaker unlabelled; confirmed as Ultron's by the project owner from the episode on 2026-10-22, agreeing with Litehouse Media; With Ashley and Co gives it to E.D.I.T.H.)"
   register: [child, psychopath]
   situation_tags: [force_through, override, hack, stubborn_process]
   move: "Theatrical glee while forcing something stubborn to obey"

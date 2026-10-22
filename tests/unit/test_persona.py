@@ -27,7 +27,6 @@ def test_banks_load_and_unverified_are_excluded() -> None:
     assert {a.id for a in banks} - {a.id for a in retrievable} == {
         "vq-08",
         "vq-09",
-        "vq-25",
         "vq-26",
         "vq-27",
         "vq-31",
