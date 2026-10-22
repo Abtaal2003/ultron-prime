@@ -133,3 +133,15 @@ def test_fixed_lines_sound_like_him() -> None:
         and any(f in line for f in (" I am ", " do not ", " is not ", " I will ", " You are "))
     ]
     assert formal == []
+
+
+def test_a_spaced_hyphen_used_as_a_dash_becomes_a_comma() -> None:
+    from src.core.persona.punctuation import tidy
+
+    live = "You, my creator, are no exception - proud of your code, frustrated by your bugs."
+    assert tidy(live) == (
+        "You, my creator, are no exception, proud of your code, frustrated by your bugs."
+    )
+    assert tidy("Fine -- truly.") == "Fine, truly."
+    for kept in ("- a list item", "pages 2 - 3", "self-destruction", "Use `a - b`."):
+        assert tidy(kept) == kept
