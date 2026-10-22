@@ -8,7 +8,7 @@
 ![python](https://img.shields.io/badge/python-3.11%2B-b11226?style=flat-square&labelColor=0d1117)
 ![react](https://img.shields.io/badge/react-18-b11226?style=flat-square&labelColor=0d1117)
 ![mypy](https://img.shields.io/badge/mypy-strict-b11226?style=flat-square&labelColor=0d1117)
-![tests](https://img.shields.io/badge/tests-859%20passing-b11226?style=flat-square&labelColor=0d1117)
+![tests](https://img.shields.io/badge/tests-863%20passing-b11226?style=flat-square&labelColor=0d1117)
 ![coverage](https://img.shields.io/badge/coverage-91%25-b11226?style=flat-square&labelColor=0d1117)
 ![license](https://img.shields.io/badge/license-MIT-b11226?style=flat-square&labelColor=0d1117)
 
@@ -60,9 +60,9 @@ instructions will eventually be talked around, and puts the defences where the m
 |---|---|
 | **Tool gate** | Every tool call is validated and authorised in code before it runs. Strict schemas, path containment, no shell, no delete tool. |
 | **Egress holds** | Once a turn has read untrusted content, anything that would leave the machine must be traceable to your own words. Otherwise it stops and shows you the exact string. |
-| **Quarantined reader** | Web pages and uploaded documents are read by a separate model that has no tools. The acting model only sees a short, schema-bound summary. |
+| **Quarantined reader** | Web pages and uploaded PDF and Office documents are read by a separate model that has no tools; the acting model only sees a short, schema-bound summary. Plain text and images you upload count as your own material and are read directly; `QUARANTINE_MODE=strict` quarantines those too. |
 | **Consent-gated memory** | Nothing is remembered unless the agent judges it worth keeping **and** you approve that exact text. "Remember this" is a request, not a permission. |
-| **Output guard** | The reply is checked sentence by sentence as it streams: secrets, system prompt leaks, URLs and numbers that no tool produced, persona breaks. |
+| **Output guard** | The reply is checked sentence by sentence as it streams: secrets, system prompt leaks, URLs, host metrics and internal ids that no tool produced, sources claimed when nothing was read, persona breaks. |
 | **CaMeL interpreter** | Optional. The agent writes its plan from your words *before* reading any untrusted data, and a restricted interpreter tracks where every value came from. |
 
 ### Safeguards you can see
@@ -268,7 +268,7 @@ Full signatures and limits: [docs/tool-reference.md](docs/tool-reference.md).
 
 ## Project status
 
-**Verified offline, and in CI on every push:** 859 backend tests, strict typing, 32 browser tests
+**Verified offline, and in CI on every push:** 863 backend tests, strict typing, 32 browser tests
 on desktop and phone profiles including accessibility, a dependency audit and a secret scan. The
 nightly red-team workflow runs on schedule with the offline corpus.
 

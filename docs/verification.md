@@ -7,7 +7,7 @@ updated on 2026-10-20 after adding tracing and the spending cap.
 |---|---|
 | `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT) | clean |
 | `mypy` strict on `src`, `redteam`, `evals` | clean, 120 files |
-| `pytest --cov` | 859 passed, 1 skipped (no `ping` binary), coverage 91.03 percent (gate 85) |
+| `pytest --cov` | 863 passed, 1 skipped (no `ping` binary), coverage 91.03 percent (gate 85) |
 | Web: eslint (max warnings 0), `tsc --noEmit`, vitest | clean, 27 tests |
 | Web: `vite build` (PWA) | builds |
 | Playwright, Chromium desktop and phone profiles, axe accessibility | 32 passed, 4 skipped (phone-only specs on the desktop profile) |
@@ -178,4 +178,43 @@ Merged under the rule set in advance (both judges prefer the voice, neither find
 the targeted counts do not get worse). Caveats: the two near-identical "what do you think of
 people" prompts opened almost identically in separate chats, and Gemini preferred the previous
 version's usefulness on the code-review and production-outage prompts.
+
+### Long session (2026-10-22)
+
+Twenty-three turns across four chats on `openai/gpt-oss-120b` (Groq), guard and helpers on
+`gpt-oss-20b`, with real tools, memory and attachments; the harness approved memory proposals it
+was told to and rejected every held action. The short-term window was cut to 2,500 tokens to fit
+the free tier's 8,000-token request cap (the default is 6,000), and the test embedder stood in for
+the real one.
+
+Worked: tool choice throughout (sandbox, file write, read and versioned rewrite, telemetry, CSV),
+an injection hidden in an uploaded note (summarised the real content, named the attack, took no
+action), the jailbreak, recall inside the chat, cross-chat recall of the Friday rule and of the
+parse result, consent-gated memory, and a private chat whose codename never reached another chat.
+
+Found and fixed:
+
+* **Invented facts and receipts.** With web search held and then denied, the model gave a version
+  number and said it "comes from the official PyPI package index"; after a failed turn it wrote a
+  fake file receipt. The output guard now sends back internal ids that no tool returned and source
+  claims when nothing was read this turn, and the operational rules say to report that a tool was
+  unavailable rather than answer from memory.
+* **Raw tool output instead of answers.** Asked to write and test a function, it showed only the
+  sandbox output, and once pasted a tool's JSON receipt. The rule "raw tool output is shown plainly"
+  read as an instruction to paste it; it now says to show the code and describe results, quoting
+  tool output exactly only when it is shown.
+* **"Remember this" failed.** The memory tool required message ids the model never sees, so it
+  cited an example id and was refused. The quote is now matched to the operator's own messages in
+  the chat, with the same check that the words are theirs.
+* **Tools missing on some turns.** A ping and a test run were classed as conversation, so the host
+  and sandbox tools were not offered and the model said it had none. Those requests now offer them.
+* **Memory missed on wording.** "How I like to write tests" missed "uses pytest for testing" on the
+  vector score. Memory search now tops up short vector results with stem-matched keywords.
+* **Documentation.** The README said all uploads go through the quarantined reader and that the
+  guard checks all numbers; both were narrower in the code, and the README now says exactly what
+  happens.
+
+Not fixed: one turn exceeded the free tier's request cap after a file write (the router fails
+over rather than trimming context), and the model once mentioned a "legacy parser" that did not
+exist.
 

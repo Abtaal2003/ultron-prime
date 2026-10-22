@@ -138,6 +138,21 @@ async def test_vault_crud_and_search(vault: Vault, db: Database) -> None:
     assert await vault.search("ruff linting") == []
 
 
+async def test_vault_keyword_topup_finds_what_vectors_miss(vault: Vault) -> None:
+    """Live run 2026-10-22: "how I like to write tests" missed the pytest memory."""
+    item = await vault.add(
+        text="The operator always uses pytest for testing, never unittest.",
+        category="operator_preferences",
+        importance=3,
+        source_chat_id=None,
+        evidence_message_ids=["m1"],
+        evidence_span="pytest",
+    )
+    hits = await vault.search("Do you remember how I like to write tests?", threshold=0.99)
+    assert [h.id for h in hits] == [item.id]
+    assert await vault.search("what do you remember about me", threshold=0.99) == []
+
+
 async def test_vault_validation_and_not_found(vault: Vault) -> None:
     with pytest.raises(ValidationFailure):
         await vault.add(
@@ -218,9 +233,12 @@ async def test_vault_rebuild_index(vault: Vault) -> None:
     )
     assert vault.vectors is not None
     await vault.vectors.reset("memories")
-    assert await vault.search("red-team evals") == []
+    # with the index gone, only the keyword top-up finds it (no vector score)
+    before = await vault.search("red-team evals")
+    assert [h.score for h in before] == [None]
     assert await vault.rebuild_index() == 1
-    assert await vault.search("red-team evals")
+    after = await vault.search("red-team evals")
+    assert after and after[0].score is not None
 
 
 # ---------------------------------------------------------------- manager: happy path -----------

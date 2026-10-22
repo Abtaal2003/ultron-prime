@@ -49,8 +49,8 @@ def budget_for(task_type: str, settings: Settings) -> Budget:
             settings.effort_tech,
             2,
             ("psychopath", "father"),
-            "Answer first. At most two lines of voice. Code, numbers, and tool output stay "
-            "plain and exact.",
+            "Answer first. At most two lines of voice. Show the code you write; quote numbers and "
+            "tool output exactly when you show them, but don't paste raw tool receipts.",
         )
     if task_type == "REVIEW":
         return Budget(

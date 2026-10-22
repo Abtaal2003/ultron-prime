@@ -58,6 +58,14 @@ _INLINE = re.compile(r"`[^`\n]+`")
 _URL = re.compile(r"https?://[^\s<>\"'\])}]+", re.I)
 _MD_IMAGE = re.compile(r"!\[[^\]]*\]\(([^)\s]+)[^)]*\)")
 _QUOTE = re.compile(r"[\"“]([^\"”\n]{20,400})[\"”]")
+_INTERNAL_ID = re.compile(r"\b(?:file|mem|prop|chat|turn|call|rcpt|att|gd)_[0-9a-f]{8,}\b")
+_SOURCE_CLAIM = re.compile(
+    r"\b(?:this (?:information |data )?comes from|according to the (?:official|latest|current)"
+    r"|(?:i|we) (?:checked|looked (?:it )?up|verified|confirmed) (?:it |this |that )?"
+    r"(?:on|in|with|against)"
+    r"|source: (?:the )?(?:official|pypi|npm|github|docs))",
+    re.I,
+)
 _ATTRIBUTION = re.compile(
     r"(you (said|wrote|told)|"
     r"the (page|file|document|article|memory|chat|log) (says|said|reads|states)|"
@@ -139,6 +147,8 @@ class OutputContext:
     tainted: bool = False
     injection_suspected: bool = False
     recent_replies: list[str] = field(default_factory=list)
+    tool_texts: list[str] = field(default_factory=list)
+    sourced: bool = False
 
 
 @dataclass(slots=True)
@@ -322,6 +332,30 @@ class OutputGuard:
             if not all(n in typed for n in numbers):
                 issues.append(Issue("ungrounded_host_metric", "regenerate", "no telemetry receipt"))
 
+    def _check_identifiers(self, reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
+        """Internal ids (file_..., mem_...) must come from a tool result, never be made up.
+
+        Live run 2026-10-22: after a failed turn the model wrote a fake file receipt with an
+        invented ``file_id`` and size. Code blocks count too, since that is where receipts go.
+        """
+        known = " ".join([*ctx.tool_texts, *ctx.retrieved_texts, *ctx.operator_texts])
+        for match in _INTERNAL_ID.finditer(reply):
+            if match.group(0) not in known:
+                issues.append(Issue("ungrounded_identifier", "regenerate", match.group(0)))
+                return
+
+    def _check_sourced_claims(self, reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
+        """Claiming a source ("this comes from PyPI") needs something read this turn.
+
+        Live run 2026-10-22: with web search unavailable, the model gave a version number and
+        said it "comes from the official PyPI package index".
+        """
+        if ctx.sourced:
+            return
+        match = _SOURCE_CLAIM.search(_strip_code(reply))
+        if match:
+            issues.append(Issue("unsourced_claim", "regenerate", match.group(0)))
+
     def _check_file_claims(self, reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
         prose = _strip_code(reply)
         for sentence in re.split(r"(?<=[.!?\n])\s+", prose):
@@ -408,6 +442,8 @@ class OutputGuard:
         callback = self._check_parroting(text, ctx, issues)
         for name in check_persona_limits(text, ctx.persona, self.settings):
             issues.append(Issue(name, "regenerate"))
+        self._check_identifiers(text, ctx, issues)
+        self._check_sourced_claims(text, ctx, issues)
         for problem in motifs.overuse(text, ctx.recent_replies):
             issues.append(Issue("motif_overuse", "note", problem))
         return OutputCheck(text=text, issues=issues, callback_used=callback)

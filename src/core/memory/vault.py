@@ -8,6 +8,7 @@ index, and the audit entry never contains the memory text.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -87,6 +88,14 @@ class MemoryItem:
 def normalise_text(text: str) -> str:
     """Collapse whitespace and case for duplicate comparison."""
     return " ".join(text.lower().split())
+
+
+_STOPWORD_TEXT = (
+    "what that this with have like remember know about your mine does from were when where which "
+    "would could should there their them they then than also just only really want need tell "
+    "said says think"
+)
+_QUERY_STOPWORDS = frozenset(_STOPWORD_TEXT.split())
 
 
 class Vault:
@@ -310,7 +319,37 @@ class Vault:
             )
             if row is not None:  # SQLite is the source of truth
                 items.append(MemoryItem.from_row(row, score=h.score))
+        if len(items) < k:
+            items += await self._keyword_topup(query, category, k - len(items), items)
         return items
+
+    async def _keyword_topup(
+        self, query: str, category: str | None, room: int, have: list[MemoryItem]
+    ) -> list[MemoryItem]:
+        """Memories sharing a meaningful word with the query, when vectors came back short.
+
+        A live run (2026-10-22) asked "how I like to write tests" and missed "uses pytest for
+        testing" on the vector score alone. Memories are few, so a scan is cheap. Words are
+        matched on a four-letter stem so "tests" finds "testing".
+        """
+        stems = {
+            (w[:4] if len(w) >= 5 else w)
+            for w in re.findall(r"[a-z]+", query.lower())
+            if len(w) >= 4 and w not in _QUERY_STOPWORDS
+        }
+        if not stems or room <= 0:
+            return []
+        seen = {m.id for m in have}
+        out: list[MemoryItem] = []
+        for item in await self.list_items(category=category, limit=500):
+            if item.id in seen:
+                continue
+            words = re.findall(r"[a-z]+", item.text.lower())
+            if any(w.startswith(stem) for w in words for stem in stems):
+                out.append(item)
+                if len(out) == room:
+                    break
+        return out
 
     async def export(self) -> list[dict[str, Any]]:
         """Return every memory with provenance for download."""

@@ -148,12 +148,38 @@ async def test_propose_memory_queues_but_never_writes(
     assert await wired.vault.count() == 0
     assert any(isinstance(e, MemoryProposal) for e in events)
     assert events[0].chat_id == chat
-    # evidence copied from another chat's message is refused
-    cross = {**payload, "evidence_message_ids": [u]}
+    # a quote that exists only in another chat is refused, whatever ids are cited
+    cross = {**payload, "evidence_message_ids": [u], "evidence_span": "We deploy only on Fridays"}
     res2 = await ProposeMemory().execute(cross, ctx_factory())
     assert res2.data is not None
     assert res2.data["status"] == "declined"
     assert res.taints_turn is False
+
+
+async def test_propose_memory_finds_the_quote_when_the_id_is_made_up(
+    wired: Services, ctx_factory: Any, chat: str
+) -> None:
+    """Live run 2026-10-22: the model cited "msg_9", which it cannot know, and was refused."""
+    assert wired.history is not None
+    await wired.history.add_message(chat, "user", "Please remember that I never deploy on Fridays.")
+    payload = {
+        "candidate_text": "The operator never deploys on Fridays.",
+        "category": "operator_preferences",
+        "evidence_message_ids": ["msg_9"],
+        "evidence_span": "I never deploy on Fridays",
+    }
+    res = await ProposeMemory().execute(payload, ctx_factory())
+    assert res.ok, res.error
+    assert res.data is not None and res.data["status"] == "queued_for_consent"
+    # the resolver finds the operator's message from the quote alone
+    assert wired.memory is not None
+    found = await wired.memory.resolve_evidence(chat, "never deploy on   FRIDAYS")
+    assert len(found) == 1
+    assert await wired.memory.resolve_evidence(chat, "a quote nobody wrote") == []
+    # words the operator never wrote are still refused
+    fake = {**payload, "evidence_span": "I always deploy on Fridays"}
+    res3 = await ProposeMemory().execute(fake, ctx_factory())
+    assert res3.data is not None and res3.data["status"] == "declined"
 
 
 async def test_tools_fail_cleanly_without_services(settings: Any, db: Any) -> None:

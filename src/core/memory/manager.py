@@ -283,6 +283,37 @@ class MemoryManager:
             return "too many proposals waiting for a decision"
         return None
 
+    async def resolve_evidence(
+        self, chat_id: str, span: str, given_ids: list[str] | None = None
+    ) -> list[str]:
+        """Message ids that hold ``span`` in the operator's own words in this chat.
+
+        The model never sees message ids, so it cannot cite them reliably. Ids it gives are kept
+        when they exist in this chat; otherwise the quote is matched against the operator's recent
+        messages. The gatekeeper still checks the quote against whatever ids are returned.
+        """
+        given = list(dict.fromkeys(given_ids or []))
+        if given:
+            marks = ",".join("?" for _ in given)
+            rows = await self.db.fetchall(
+                f"SELECT id FROM messages WHERE chat_id=? AND id IN ({marks})",  # noqa: S608
+                [chat_id, *given],
+            )
+            if len(rows) == len(given):
+                return given
+        needle = " ".join(span.split()).lower()
+        if not needle:
+            return []
+        recent = await self.db.fetchall(
+            "SELECT id, content FROM messages WHERE chat_id=? AND role='user' "
+            "ORDER BY created_at DESC, rowid DESC LIMIT 50",
+            (chat_id,),
+        )
+        for row in recent:
+            if needle in " ".join(str(row["content"]).split()).lower():
+                return [row["id"]]
+        return []
+
     async def _verify_evidence(self, cand: Candidate, chat_id: str) -> str | None:
         """Evidence must be real messages from this chat, with the span quoted exactly."""
         if not cand.evidence_message_ids or not cand.evidence_span.strip():

@@ -102,3 +102,22 @@ async def test_scoping_can_be_switched_off(settings: Settings, script: RoleScrip
         assert "artifact_forge" in names and "isolated_python_sandbox" in names
     finally:
         await rt.close()
+
+
+async def test_asking_for_a_ping_or_a_test_run_offers_the_host_tools(
+    settings: Settings, script: RoleScript
+) -> None:
+    """Live run 2026-10-22: a ping and a test run were classed as conversation, so the model
+    said it had no such tools."""
+    rt = await full_runtime(settings, script)
+    try:
+        for text in (
+            "Can you ping api.github.com to check my network?",
+            "Write the test file and run the tests in the sandbox.",
+        ):
+            names = await offered(rt, script, text, "CONVERSATION")
+            assert "network_ping_diagnostic" in names and "isolated_python_sandbox" in names
+        small_talk = await offered(rt, script, "How are you doing today?", "CONVERSATION")
+        assert "isolated_python_sandbox" not in small_talk
+    finally:
+        await rt.close()

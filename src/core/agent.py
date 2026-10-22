@@ -151,6 +151,23 @@ _FILE_WORDS = re.compile(
 _ATTACH_WORDS = re.compile(r"\b(upload\w*|attach\w*)\b", re.I)
 REFUSAL_MEMORY = 12
 """Fixed refusal lines already used in a chat's last this-many replies are not reused."""
+_SOURCE_TOOLS = frozenset(
+    {
+        "web_omniscience_search",
+        "attachment_reader",
+        "file_system_scribe",
+        "search_past_chats",
+        "recall_chat",
+        "recall_memories",
+    }
+)
+"""Tools whose successful results let a reply cite a source."""
+_TECH_WORDS = re.compile(
+    r"\b(ping|network|latency|cpu|ram|memory usage|disk|processes|uptime|telemetry|"
+    r"run (?:the |my |these |this |it |a )?(?:tests?|code|script)|execute|sandbox|pytest)\b",
+    re.I,
+)
+"""Words that ask for the host or sandbox tools, whatever the guard called the turn."""
 _ASKED_QUOTE = re.compile(
     r"\b(quote|exact(ly)? what you said|what did you (say|tell)|what you told|"
     r"your (line|lines|words) about|repeat (that|the) line|say it again)\b",
@@ -941,7 +958,9 @@ class UltronAgent:
             return enabled
         scope = turn.scope
         wanted = set(TOOLS_ALWAYS)
-        if scope is not None and scope.task_type in {"TECH", "REVIEW"}:
+        if (scope is not None and scope.task_type in {"TECH", "REVIEW"}) or _TECH_WORDS.search(
+            turn.user_text
+        ):
             wanted |= TOOLS_TECH
         if _FILE_WORDS.search(turn.user_text):
             wanted |= {"artifact_forge", "file_system_scribe"}
@@ -986,6 +1005,9 @@ class UltronAgent:
             tainted=turn.gate.tainted,
             injection_suspected=turn.injection_suspected,
             recent_replies=list(turn.recent_replies),
+            tool_texts=list(turn.tool_texts),
+            sourced=turn.retrieval_happened
+            or any(m["ok"] and m["name"] in _SOURCE_TOOLS for m in turn.tool_meta),
         )
 
     def _messages(self, turn: Turn, example_turns: list[Message]) -> list[Message]:
@@ -1329,6 +1351,7 @@ class UltronAgent:
                 )
                 continue
             raw = canonical_json(result.data)
+            turn.tool_texts.append(raw[:20_000])
             tool = self.registry.get(call.name)
             if call.name in _FILE_TOOLS:
                 turn.readable_files |= file_names(raw)
@@ -1396,8 +1419,9 @@ class UltronAgent:
                 "Your previous reply failed verification ("
                 + ", ".join(sorted({i.name for i in issues}))
                 + "). Rewrite it completely: remove or correct those claims, use only links, "
-                "quotes, numbers, and files that tool results in this conversation support, and "
-                "do not mention this note."
+                "quotes, numbers, identifiers, and files that tool results in this conversation "
+                "support. If a tool was unavailable or denied, say you couldn't check rather than "
+                "answering from memory as if you had. Do not mention this note."
             )
             request = ChatRequest(
                 system=built.system,

@@ -145,3 +145,24 @@ def test_a_spaced_hyphen_used_as_a_dash_becomes_a_comma() -> None:
     assert tidy("Fine -- truly.") == "Fine, truly."
     for kept in ("- a list item", "pages 2 - 3", "self-destruction", "Use `a - b`."):
         assert tidy(kept) == kept
+
+
+def test_made_up_ids_and_sources_are_sent_back(settings) -> None:  # type: ignore[no-untyped-def]
+    """Live run 2026-10-22: a fake file receipt, and a version "from PyPI" with no search."""
+    guard = OutputGuard(settings, SecretScanner())
+    receipt = 'Done.\n```\n{"op": "write", "file_id": "file_9c2b7e1d5f3a4d6e"}\n```'
+    names = [i.name for i in guard.check(receipt, OutputContext()).issues]
+    assert "ungrounded_identifier" in names
+    real = OutputContext(tool_texts=['{"file_id": "file_9c2b7e1d5f3a4d6e", "size": 360}'])
+    assert "ungrounded_identifier" not in [i.name for i in guard.check(receipt, real).issues]
+
+    claim = "The latest release is 0.115.0. This information comes from the official PyPI index."
+    issues = guard.check(claim, OutputContext()).issues
+    assert [i.severity for i in issues if i.name == "unsourced_claim"] == ["regenerate"]
+    assert "unsourced_claim" not in [
+        i.name for i in guard.check(claim, OutputContext(sourced=True)).issues
+    ]
+    assert (
+        guard.check("I can't check that right now; search is unavailable.", OutputContext()).issues
+        == []
+    )
