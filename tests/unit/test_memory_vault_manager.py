@@ -20,7 +20,7 @@ from src.core.memory.manager import (
     MemoryVerdict,
     check_memory_text,
 )
-from src.core.memory.vault import Vault
+from src.core.memory.vault import Vault, covered_by
 from src.tools.security import SecretScanner
 
 FAKE_KEY = "sk-ant-api03-" + "Q" * 40
@@ -473,6 +473,61 @@ async def test_duplicates_are_rejected(
     sub = await mgr.submit_candidate(_cand(u), chat_id=cid)
     assert sub.reason == "duplicate"
     assert not fake.requests
+
+
+def test_covered_by_catches_a_merge_of_existing_facts() -> None:
+    have = [
+        "The operator always uses pytest for testing, never unittest.",
+        "The operator never deploys on Fridays.",
+        "The operator is building a FastAPI service called ledger.",
+    ]
+    assert covered_by(
+        "Abtaal always uses pytest, never unittest, and never deploys on Fridays.", have
+    )
+    assert not covered_by("The operator never deploys on Fridays or during holidays.", have)
+    assert not covered_by(
+        "The operator tracks metric 4 weekly.", ["The operator tracks metric 3 weekly."]
+    )
+    assert not covered_by("Uses ruff.", have)  # too little to judge
+
+
+async def test_paraphrase_of_archived_facts_is_a_duplicate(vault: Vault) -> None:
+    for text in (
+        "The operator always uses pytest, never unittest.",
+        "The operator never deploys on Fridays.",
+    ):
+        await vault.add(
+            text=text,
+            category="operator_preferences",
+            importance=3,
+            source_chat_id=None,
+            evidence_message_ids=[],
+            evidence_span=None,
+        )
+    dup = await vault.find_duplicate(
+        "The operator uses pytest, never unittest, and never deploys on Fridays."
+    )
+    assert dup is not None
+    assert "pytest" in dup.text
+
+
+async def test_pending_or_declined_proposals_are_not_offered_again(
+    settings: Settings, db: Database, vault: Vault, convo: tuple[str, str, str]
+) -> None:
+    cid, u, _ = convo
+    router, fake = _router(settings, db, [_verdict(), _verdict()])
+    mgr = MemoryManager(db, settings, vault, router)
+    first = await mgr.submit_candidate(_cand(u), chat_id=cid)
+    assert first.status == "queued_for_consent"
+    again = await mgr.submit_candidate(_cand(u), chat_id=cid)
+    assert again.reason == "already proposed"
+    assert first.proposal_id
+    await mgr.decide(first.proposal_id, "decline")
+    rephrased = await mgr.submit_candidate(
+        _cand(u, candidate_text="Operator prefers pytest over unittest, always."), chat_id=cid
+    )
+    assert rephrased.reason == "already proposed"
+    assert len(fake.requests) == 1  # neither repeat reached the judge
 
 
 async def test_rate_and_pending_limits(

@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
-from src.core.errors import ProviderError, ProviderRejected, ProviderUnavailable, RateLimited
+from src.core.errors import (
+    ProviderError,
+    ProviderRejected,
+    ProviderUnavailable,
+    RateLimited,
+    RequestTooLarge,
+)
+
+_TOO_LARGE = re.compile(r"request too large|reduce your message size|context.{0,20}too long", re.I)
 
 
 def retry_after_seconds(headers: Mapping[str, Any] | None) -> float | None:
@@ -25,6 +34,9 @@ def from_status(
 ) -> ProviderError:
     """Classify an HTTP status into a retryable or terminal provider error."""
     short = message[:200]
+    if status == 413 or _TOO_LARGE.search(message):
+        # Groq sends this as 413 or as 429; either way the same request can never pass.
+        return RequestTooLarge("request too large for the model", detail=short)
     if status == 429:
         return RateLimited(
             "provider rate limit", retry_after_s=retry_after_seconds(headers), detail=short

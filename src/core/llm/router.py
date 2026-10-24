@@ -24,6 +24,7 @@ from src.core.errors import (
     ProviderError,
     ProviderUnavailable,
     RateLimited,
+    RequestTooLarge,
     StructuredOutputError,
 )
 from src.core.events import AgentEvent, ProviderFailover, utcnow_iso
@@ -394,6 +395,8 @@ class LLMRouter:
                     await self._sleep(min(wait, 20.0) + random.uniform(0, 0.25))  # noqa: S311
                     delay *= 2
             previous = str(route)
+        if isinstance(last, RequestTooLarge):
+            raise last  # the caller can shrink the request; "unavailable" would hide that
         raise ProviderUnavailable(
             "all model routes failed", detail=last.message if last else None
         ) from last

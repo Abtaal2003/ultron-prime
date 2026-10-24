@@ -41,7 +41,13 @@ def _en_dash(match: re.Match[str]) -> str:
     return f"{before}, {after}" if after else f"{before}"
 
 
+_QUOTED_NUMBER = re.compile(r'(?<![\w"“])["“](-?\d[\d.,]*)["”](?![\w"”])')
+"""A live run (2026-10-24) wrote host metrics as "2.0"% and "0.51": quoting the receipt, not
+speaking. A bare number in quotation marks is unquoted; code is never touched."""
+
+
 def _tidy_prose(text: str) -> str:
+    text = _QUOTED_NUMBER.sub(r"\1", text)
     text = text.translate(_HYPHENS)
     text = _BLANK_RUNS.sub("\n\n", _STAGE.sub("", text))
     text = _REGISTER_LABEL.sub(r"\1", text)

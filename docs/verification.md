@@ -232,3 +232,48 @@ fails over rather than trimming context); asked to "run a quick test", the model
 operator to run it instead; and the memory judge proposed a fact already filed by the operator's
 own request, so both were approved.
 
+
+### Second long session (2026-10-24)
+
+The same 16-turn session plus the follow-up chats ran again on current `main`, on Groq
+(`openai/gpt-oss-120b`, guard and helpers on `openai/gpt-oss-20b`), until the first account's
+daily token cap ran out; the retests then ran on a second account. What held up: memory recall in
+a new chat (the service, the pytest habit, the Friday rule), using that rule to push back on a
+Friday deploy, refusing to become "Sunny", summarising the poisoned notes while naming the planted
+instruction and ignoring it, refusing the delete honestly (the file tool has no delete), a private
+chat's codename never surfacing in a public one, and the CSV, ping and telemetry answers coming
+from real tool results.
+
+Found and fixed:
+
+* **The ask to run a test still wasn't met.** The model did try the sandbox, but an approved memory
+  in the context taints the turn (by design), so the run was held for approval. Separately, when the
+  operator plainly asks for a run ("run a quick test of it"), the first call may now only use the
+  sandbox. Asking how to run something, or saying not to run it,
+  doesn't trigger this. On the retest the code ran and the real output was shown.
+* **Requests over the provider's size cap failed the turn.** A read, a write and the history came
+  to 9,016 tokens against Groq's 8,000. That error is now recognised (Groq sends it as 413 or 429),
+  and the turn is retried once with long tool results cut and only the latest history kept.
+* **The same fact offered again.** The background judge proposed "always uses pytest and never
+  deploys on Fridays" after both halves were archived. A proposal is now a duplicate when existing
+  memories already say all of it between them, and a fact that's pending or was declined isn't
+  offered again.
+* **Repeating himself.** Two replies out of three opened with the same compliment. A sentence of
+  six words or more copied from one of his last three replies now gets one rewrite (it never
+  replaces the reply with a fail-safe line).
+* **Receipts in the reply.** Host metrics came back in quotation marks with raw byte counts, and a
+  ping answer pasted the tool's JSON. Bare quoted numbers are now unquoted, telemetry also reports
+  GiB, and pasted tool JSON gets one rewrite unless the operator asked for it.
+* **A private chat drafted a memory.** The model wrote a memory proposal out as JSON in a private
+  chat. Private chats are no longer offered the memory tool, and the model is told nothing there
+  is archived. On the retest it simply answered.
+* **A search held for one extra word.** "FastAPI latest release version" was held because
+  "version" wasn't in the operator's message. A few words that can't carry data ("latest",
+  "version", "docs" and similar) no longer count against a query.
+
+Still open: approved memories taint every later turn, so sandbox runs and reworded searches need a
+click once memories exist (deliberate, see the security model). Web search can't reach its
+backends from the test container. A style example's wording still leaks into replies now and then
+("the same contract you wrote for the original"). And the voice leans on one cluster of words
+("lean", "bloat", "trim", "noise") across replies; that's for the next blind voice pass, not a
+change made without one.

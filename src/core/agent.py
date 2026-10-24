@@ -51,6 +51,7 @@ from src.core.errors import (
     NotFound,
     PolicyDenied,
     ProviderError,
+    RequestTooLarge,
     UltronError,
 )
 from src.core.events import (
@@ -97,6 +98,7 @@ from src.core.llm.base import (
     Message,
     SamplingPolicy,
     TextPart,
+    ToolChoice,
     ToolResultPart,
     ToolSpec,
     ToolUsePart,
@@ -164,10 +166,22 @@ _SOURCE_TOOLS = frozenset(
 """Tools whose successful results let a reply cite a source."""
 _TECH_WORDS = re.compile(
     r"\b(ping|network|latency|cpu|ram|memory usage|disk|processes|uptime|telemetry|"
-    r"run (?:the |my |these |this |it |a )?(?:tests?|code|script)|execute|sandbox|pytest)\b",
+    r"run (?:the |my |these |this |it |a )?(?:quick |small )?(?:tests?|code|script)|execute|"
+    r"sandbox|pytest)\b",
     re.I,
 )
 """Words that ask for the host or sandbox tools, whatever the guard called the turn."""
+_RUN_REQUEST = re.compile(
+    r"\b(?:run|execute)\b[^.?!\n]{0,30}?\b(?:tests?|it|this|that|code|script|them|function)\b",
+    re.I,
+)
+_NOT_A_RUN_REQUEST = re.compile(
+    r"\bhow (?:do|can|should|would|to)\b|\b(?:don'?t|do not|without|never)\s+(?:\w+\s+)?run",
+    re.I,
+)
+SANDBOX_TOOL = "isolated_python_sandbox"
+COMPACT_RESULT_CHARS = 1200
+COMPACT_WINDOW_MESSAGES = 2
 _ASKED_QUOTE = re.compile(
     r"\b(quote|exact(ly)? what you said|what did you (say|tell)|what you told|"
     r"your (line|lines|words) about|repeat (that|the) line|say it again)\b",
@@ -858,6 +872,10 @@ class UltronAgent:
         scope = turn.scope
         assert scope is not None
         assert turn.prefilter is not None
+        chat = await self.history.db.fetchone(
+            "SELECT private FROM chats WHERE id=?", (turn.chat_id,)
+        )
+        turn.private = bool(chat and chat["private"])
         text = turn.prefilter.normalised
         inputs = turn.prompt_inputs
         inputs.task_type = scope.task_type
@@ -1028,6 +1046,24 @@ class UltronAgent:
         tools = [] if capped or turn.camel_done else self._tool_specs(turn)
         built = self.prompts.build(turn.prompt_inputs)
         system_dynamic = built.system_dynamic
+        tool_choice: ToolChoice = "auto"
+        if self._must_run_first(turn, iteration, tools):
+            # A live run (2026-10-24) answered "write it and run a quick test" with the code and
+            # no run. The first call may only use the sandbox; the rest of the turn is normal.
+            tools = [t for t in tools if t.name == SANDBOX_TOOL]
+            tool_choice = "required"
+            system_dynamic += (
+                "\n\nThe operator asked you to run code. Run it in the sandbox now, then answer "
+                "with the code and the real output."
+            )
+        if turn.private:
+            # Live run 2026-10-24: in a private chat the model wrote out a memory proposal as
+            # JSON. Nothing here is archived, so the tool is not offered and he is told why.
+            tools = [t for t in tools if t.name != "propose_memory"]
+            system_dynamic += (
+                "\n\nThis chat is private. Nothing in it is archived, so don't offer to remember "
+                "anything and don't draft memory notes."
+            )
         if capped:
             system_dynamic += (
                 "\n\nThe tool budget for this turn is spent. Answer now with what you have, "
@@ -1036,8 +1072,9 @@ class UltronAgent:
         request = ChatRequest(
             system=built.system,
             system_dynamic=system_dynamic,
-            messages=self._messages(turn, built.example_turns),
+            messages=self._messages(turn, [] if turn.compacted else built.example_turns),
             tools=tools,
+            tool_choice=tool_choice,
             sampling=SamplingPolicy(
                 effort=self.settings.effort_for(scope.task_type),
                 temperature=self.settings.temperature_tools
@@ -1055,15 +1092,24 @@ class UltronAgent:
         calls: list[ToolUsePart] = []
         response = None
         ctx = self._call_ctx(turn)
-        async for chunk in self.router.stream("main", request, ctx):
-            if chunk.kind == "text" and chunk.delta:
-                text_parts.append(chunk.delta)
-                for piece in streamer.feed(chunk.delta):
-                    await self._emit(turn, AgentToken(delta=piece))
-            elif chunk.kind == "tool_call" and chunk.tool_call is not None:
-                calls.append(chunk.tool_call)
-            elif chunk.kind == "done":
-                response = chunk.response
+        try:
+            async for chunk in self.router.stream("main", request, ctx):
+                if chunk.kind == "text" and chunk.delta:
+                    text_parts.append(chunk.delta)
+                    for piece in streamer.feed(chunk.delta):
+                        await self._emit(turn, AgentToken(delta=piece))
+                elif chunk.kind == "tool_call" and chunk.tool_call is not None:
+                    calls.append(chunk.tool_call)
+                elif chunk.kind == "done":
+                    response = chunk.response
+        except RequestTooLarge:
+            if text_parts or turn.compacted:
+                raise
+            # Live run 2026-10-24: a read, a write and the history came to 9,016 tokens against
+            # an 8,000 cap. Shrink once and ask again rather than fail the turn.
+            log.warning("request_too_large_compacting", turn_id=turn.turn_id)
+            self._compact(turn)
+            return await self.n_llm_decide(state)
         for piece in streamer.flush():
             await self._emit(turn, AgentToken(delta=piece))
         turn.stream_blocked = turn.stream_blocked or streamer.blocked
@@ -1081,6 +1127,33 @@ class UltronAgent:
             turn.pending = [PendingCall(c) for c in calls]
             return {"route": "tools", "iteration": iteration + 1}
         return {"route": "answer", "iteration": iteration}
+
+    @staticmethod
+    def _compact(turn: Turn) -> None:
+        """Make the next request smaller: cut long tool results, keep only recent history."""
+        turn.compacted = True
+        note = "\n[cut to fit the model's request size limit]"
+        for i, msg in enumerate(turn.loop_messages):
+            parts = [
+                p.model_copy(update={"content": p.content[:COMPACT_RESULT_CHARS] + note})
+                if isinstance(p, ToolResultPart) and len(p.content) > COMPACT_RESULT_CHARS
+                else p
+                for p in msg.parts
+            ]
+            turn.loop_messages[i] = msg.model_copy(update={"parts": parts})
+        if turn.window is not None:
+            turn.window.messages = turn.window.messages[-COMPACT_WINDOW_MESSAGES:]
+
+    @staticmethod
+    def _must_run_first(turn: Turn, iteration: int, tools: list[ToolSpec]) -> bool:
+        """The operator asked for a run, the sandbox is on offer, and nothing has run yet."""
+        return (
+            iteration == 0
+            and any(t.name == SANDBOX_TOOL for t in tools)
+            and bool(_RUN_REQUEST.search(turn.user_text))
+            and not _NOT_A_RUN_REQUEST.search(turn.user_text)
+            and not any(m["name"] == SANDBOX_TOOL for m in turn.tool_meta)
+        )
 
     @staticmethod
     def _add_usage(total: Usage, extra: Usage) -> None:
@@ -1421,7 +1494,9 @@ class UltronAgent:
                 + "). Rewrite it completely: remove or correct those claims, use only links, "
                 "quotes, numbers, identifiers, and files that tool results in this conversation "
                 "support. If a tool was unavailable or denied, say you couldn't check rather than "
-                "answering from memory as if you had. Do not mention this note."
+                "answering from memory as if you had. Don't reuse sentences from your earlier "
+                "replies, and say what a tool found instead of pasting its JSON. Do not mention "
+                "this note."
             )
             request = ChatRequest(
                 system=built.system,

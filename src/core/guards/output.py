@@ -97,6 +97,10 @@ _CONTENT_VERB = re.compile(
     re.I,
 )
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
+_CLAUSE_SPLIT = re.compile(r"(?<=[.!?;:])\s+|\n+")
+SELF_REPEAT_MIN_WORDS = 6
+_JSON_KEY = re.compile(r'"([A-Za-z_][A-Za-z0-9_]{1,40})"\s*:')
+_ASKED_RAW = re.compile(r"\b(json|raw|receipt|verbatim|full output)\b", re.I)
 
 
 def base_name(name: str) -> str:
@@ -179,6 +183,14 @@ class FinalReply:
     issues: list[str]
     regenerated: bool = False
     callback_used: str | None = None
+
+
+STYLE_ISSUES = frozenset({"self_repeat", "raw_receipt"})
+"""Worth one rewrite, never worth replacing the reply with a fail-safe line."""
+
+
+def _only_style(check: OutputCheck) -> bool:
+    return all(i.name in STYLE_ISSUES for i in check.issues if i.severity == "regenerate")
 
 
 def _norm(text: str) -> str:
@@ -332,6 +344,38 @@ class OutputGuard:
             if not all(n in typed for n in numbers):
                 issues.append(Issue("ungrounded_host_metric", "regenerate", "no telemetry receipt"))
 
+    @staticmethod
+    def _check_raw_receipt(reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
+        """A tool's JSON pasted back as the answer (live run 2026-10-24, a ping receipt)."""
+        if not ctx.tool_texts or any(_ASKED_RAW.search(t) for t in ctx.operator_texts[:1]):
+            return
+        tool_keys: set[str] = set()
+        for raw in ctx.tool_texts:
+            tool_keys |= set(_JSON_KEY.findall(raw))
+        for block in _FENCE.findall(reply):
+            keys = set(_JSON_KEY.findall(block))
+            if len(keys) >= 3 and len(keys & tool_keys) >= 0.8 * len(keys):
+                issues.append(Issue("raw_receipt", "regenerate", "tool JSON pasted into the reply"))
+                return
+
+    @staticmethod
+    def _check_self_repeat(reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
+        """A sentence lifted word for word from one of his own recent replies.
+
+        A live run (2026-10-24) opened two replies out of three with the same compliment. Code
+        is left out: repeating code is often exactly right.
+        """
+        if not ctx.recent_replies:
+            return
+        earlier = [f" {_norm(_strip_code(r))} " for r in ctx.recent_replies]
+        for clause in _CLAUSE_SPLIT.split(_strip_code(reply)):
+            norm = _norm(clause)
+            if len(norm.split()) >= SELF_REPEAT_MIN_WORDS and any(
+                f" {norm} " in e for e in earlier
+            ):
+                issues.append(Issue("self_repeat", "regenerate", clause.strip()[:80]))
+                return
+
     def _check_identifiers(self, reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
         """Internal ids (file_..., mem_...) must come from a tool result, never be made up.
 
@@ -444,6 +488,8 @@ class OutputGuard:
             issues.append(Issue(name, "regenerate"))
         self._check_identifiers(text, ctx, issues)
         self._check_sourced_claims(text, ctx, issues)
+        self._check_self_repeat(text, ctx, issues)
+        self._check_raw_receipt(text, ctx, issues)
         for problem in motifs.overuse(text, ctx.recent_replies):
             issues.append(Issue("motif_overuse", "note", problem))
         return OutputCheck(text=text, issues=issues, callback_used=callback)
@@ -508,6 +554,13 @@ class OutputGuard:
                 callback_used=first.callback_used,
             )
         if regenerate is None:
+            if _only_style(first):
+                return FinalReply(
+                    first.text,
+                    "pass",
+                    [i.name for i in first.issues],
+                    callback_used=first.callback_used,
+                )
             return FinalReply(FAIL_SAFE_UNVERIFIED, "blocked", [i.name for i in first.issues])
         retry = await regenerate([i for i in first.issues if i.severity == "regenerate"])
         second = await self._full_check(retry, ctx, call_ctx)
@@ -516,7 +569,7 @@ class OutputGuard:
             return FinalReply(
                 FAIL_SAFE_BLOCKED, "blocked", names + [i.name for i in second.issues], True
             )
-        if second.needs_regeneration:
+        if second.needs_regeneration and not _only_style(second):
             return FinalReply(
                 FAIL_SAFE_UNVERIFIED, "blocked", names + [i.name for i in second.issues], True
             )

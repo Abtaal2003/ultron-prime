@@ -30,6 +30,10 @@ At most `EGRESS_MAX_HOLDS_PER_TURN` holds are allowed per turn; the next one is 
    the tokens it adds are few and harmless: none 16 characters or longer (encoded data), at most
    `MAX_UNTRACED_TOKENS` (2), and none with three or more digits unless it is a year.
 
+A handful of query words that can't carry data (`HARMLESS_QUERY_WORDS`: "latest", "version",
+"docs", "release" and similar) count as the operator's own, so a search for "FastAPI latest
+release version" isn't held because the operator didn't type "version" (added 2026-10-24).
+
 The token cap is the padding fix. Without it an attacker could surround a secret with the
 operator's own words and pass the 80 percent test.
 

@@ -99,6 +99,9 @@ def test_every_tool_documents_itself() -> None:
         ("", "anything", True),
         ("the of and", "hello", True),
         ("alice@corp.example salary", "search salary data", False),
+        # live run 2026-10-24: adding "version" alone used to make this untraceable
+        ("FastAPI latest release version", "Look up the latest FastAPI release on the web", True),
+        ("FastAPI release acme merger", "Look up the latest FastAPI release on the web", False),
     ],
 )
 def test_traceable(out: str, op: str, expected: bool) -> None:

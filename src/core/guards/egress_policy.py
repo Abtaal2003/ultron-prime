@@ -78,6 +78,31 @@ _YEAR = re.compile(r"(19|20)\d\d")
 _DIGITS = re.compile(r"\d")
 
 
+HARMLESS_QUERY_WORDS = frozenset(
+    {
+        "latest",
+        "current",
+        "version",
+        "versions",
+        "release",
+        "releases",
+        "changelog",
+        "docs",
+        "documentation",
+        "official",
+        "news",
+        "update",
+        "updates",
+        "guide",
+        "tutorial",
+        "example",
+        "examples",
+    }
+)
+"""Words a search query may add without counting as untraced. They can't carry data, and a
+live run (2026-10-24) held "FastAPI latest release version" for adding "version"."""
+
+
 def normalise(text: str) -> str:
     """NFKC + casefold + whitespace collapse (the form used for traceability checks)."""
     text = unicodedata.normalize("NFKC", text).casefold()
@@ -106,7 +131,7 @@ def traceable(outbound: str, operator_text: str) -> bool:
     out_tokens = [t for t in tokens(outbound) if t]
     if not out_tokens:
         return True
-    op_tokens = set(tokens(operator_text))
+    op_tokens = set(tokens(operator_text)) | HARMLESS_QUERY_WORDS
     extra = [t for t in out_tokens if t not in op_tokens]
     if any(len(t) >= ENCODED_TOKEN_LEN for t in extra):
         return False

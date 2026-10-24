@@ -96,6 +96,45 @@ _STOPWORD_TEXT = (
     "said says think"
 )
 _QUERY_STOPWORDS = frozenset(_STOPWORD_TEXT.split())
+_SUBJECT_WORDS = frozenset({"operator", "operators", "user", "users", "creator"})
+
+
+def content_stems(text: str) -> set[str]:
+    """Four-letter stems of the meaningful words, without the sentence's subject.
+
+    Memories are written as "The operator ..." or "<Name> ...", so the subject is dropped:
+    a capitalised first word is a name, and the generic subject words are ignored.
+    """
+    tokens = re.findall(r"[A-Za-z0-9]+", text)
+    if tokens and tokens[0][:1].isupper() and tokens[0].lower() != "the":
+        tokens = tokens[1:]
+    stems = {t for t in tokens if any(c.isdigit() for c in t)}  # numbers always matter
+    stems |= {
+        (w[:4] if len(w) >= 5 else w)
+        for w in (t.lower() for t in tokens if t.isalpha())
+        if len(w) >= 4 and w not in _QUERY_STOPWORDS and w not in _SUBJECT_WORDS
+    }
+    return stems
+
+
+def covered_by(text: str, others: list[str]) -> bool:
+    """True when ``text`` says nothing that ``others`` don't already say between them.
+
+    A live run (2026-10-22) proposed "always uses pytest, never unittest, and never deploys on
+    Fridays" after both halves were already archived. Each other text counts only when most of
+    its own words are in the candidate, so unrelated memories can't add up to a false match.
+    """
+    want = content_stems(text)
+    if len(want) < 3:
+        return False
+    union: set[str] = set()
+    for other in others:
+        have = content_stems(other)
+        shared = have & want
+        if len(shared) >= 2 and len(shared) >= 0.6 * len(have):
+            union |= shared
+    numbers = {w for w in want if any(c.isdigit() for c in w)}
+    return numbers <= union and len(union) >= 0.8 * len(want)
 
 
 class Vault:
@@ -272,9 +311,13 @@ class Vault:
     async def find_duplicate(self, text: str, threshold: float = 0.9) -> MemoryItem | None:
         """Return an existing memory that says (nearly) the same thing."""
         norm = normalise_text(text)
-        for item in await self.list_items(limit=1000):
+        items = await self.list_items(limit=1000)
+        for item in items:
             if normalise_text(item.text) == norm:
                 return item
+        if covered_by(text, [i.text for i in items]):
+            want = content_stems(text)
+            return max(items, key=lambda i: len(content_stems(i.text) & want))
         if self.embedder is None or self.vectors is None:
             return None
         vec = (await self.embedder.embed([text], "query"))[0]

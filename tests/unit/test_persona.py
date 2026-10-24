@@ -22,7 +22,7 @@ from src.core.persona.ngram import overlapping, window_for, words
 
 def test_banks_load_and_unverified_are_excluded() -> None:
     banks = load_banks()
-    assert len(banks) == 48
+    assert len(banks) == 52
     retrievable = [a for a in banks if a.retrievable]
     assert {a.id for a in banks} - {a.id for a in retrievable} == {
         "vq-08",
@@ -30,6 +30,8 @@ def test_banks_load_and_unverified_are_excluded() -> None:
         "vq-26",
         "vq-27",
         "vq-31",
+        "vq-34",
+        "vq-35",
         "ao-06",
         "ao-07",
     }

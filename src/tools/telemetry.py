@@ -41,7 +41,7 @@ class CpuInfo(BaseModel):
 
 
 class MemoryInfo(BaseModel):
-    """Memory usage in bytes."""
+    """Memory usage in bytes, with GiB copies so replies can quote readable numbers."""
 
     total: int
     available: int
@@ -50,6 +50,9 @@ class MemoryInfo(BaseModel):
     swap_total: int
     swap_used: int
     swap_percent: float
+    total_gib: float = 0.0
+    used_gib: float = 0.0
+    available_gib: float = 0.0
 
 
 class DiskInfo(BaseModel):
@@ -61,6 +64,9 @@ class DiskInfo(BaseModel):
     used: int
     free: int
     percent: float
+    total_gib: float = 0.0
+    used_gib: float = 0.0
+    free_gib: float = 0.0
 
 
 class NetworkInfo(BaseModel):
@@ -94,6 +100,11 @@ class TelemetryOutput(BaseModel):
     uptime_s: float | None = None
     boot_time_epoch: float | None = None
     skipped: list[str] = []
+
+
+def gib(n: int) -> float:
+    """Bytes to GiB, two decimals."""
+    return round(n / 2**30, 2)
 
 
 def _clean_name(name: str) -> str:
@@ -155,6 +166,9 @@ def collect(args: TelemetryInput) -> TelemetryOutput:
             swap_total=swap[0],
             swap_used=swap[1],
             swap_percent=swap[2],
+            total_gib=gib(vm.total),
+            used_gib=gib(vm.used),
+            available_gib=gib(vm.available),
         )
     if "disk" in wanted:
         disks: list[DiskInfo] = []
@@ -172,6 +186,9 @@ def collect(args: TelemetryInput) -> TelemetryOutput:
                     used=usage.used,
                     free=usage.free,
                     percent=usage.percent,
+                    total_gib=gib(usage.total),
+                    used_gib=gib(usage.used),
+                    free_gib=gib(usage.free),
                 )
             )
         out.disks = disks

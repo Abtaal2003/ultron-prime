@@ -98,6 +98,8 @@ class Turn:
     callback_used: str | None = None
     stream_blocked: bool = False
     camel_done: bool = False
+    compacted: bool = False
+    private: bool = False
     recent_replies: list[str] = field(default_factory=list)
     tool_texts: list[str] = field(default_factory=list)
     offered_tools: set[str] = field(default_factory=set)

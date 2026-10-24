@@ -176,3 +176,54 @@ def test_register_labels_never_reach_the_screen() -> None:
     assert tidy("**Child:** The kettle's slow.") == "The kettle's slow."
     for kept in ("My father: a long story.", "A child process exited.", "`therapist: x`"):
         assert tidy(kept) == kept
+
+
+def test_a_sentence_reused_from_a_recent_reply_is_sent_back_once(settings) -> None:  # type: ignore[no-untyped-def]
+    import asyncio
+
+    guard = OutputGuard(settings, SecretScanner())
+    earlier = "Your ambition to track every cent is commendable; send me the schema."
+    ctx = OutputContext(recent_replies=[earlier])
+    reply = "Your ambition to track every cent is commendable; here's the parser.\n\n```python\nx = 1\n```"
+    assert "self_repeat" in [i.name for i in guard.check(reply, ctx).issues]
+    fresh = "Here's the parser. It splits on spaces and trusts nothing else."
+    assert "self_repeat" not in [i.name for i in guard.check(fresh, ctx).issues]
+    short = "Send me the schema."  # too short to count as a lifted sentence
+    assert "self_repeat" not in [
+        i.name for i in guard.check(short, OutputContext(recent_replies=[short])).issues
+    ]
+    code = "```python\ndef parse_expense(s: str) -> tuple[float, str, str]: ...\n```"
+    assert "self_repeat" not in [
+        i.name for i in guard.check(code, OutputContext(recent_replies=[code])).issues
+    ]
+
+    async def again(_issues: object) -> str:
+        return reply  # the rewrite repeats itself too
+
+    final = asyncio.run(guard.finalise(reply, ctx, again))
+    assert final.status == "regenerated" and final.text.startswith("Your ambition")
+
+
+def test_numbers_are_not_put_in_quotation_marks() -> None:
+    from src.core.persona.punctuation import tidy
+
+    raw = 'CPU runs at "2.0"% total, load "0.51", "0.57" and memory "835289088"/"8417529856" B.'
+    assert tidy(raw) == "CPU runs at 2.0% total, load 0.51, 0.57 and memory 835289088/8417529856 B."
+    assert tidy('He said "version 2" twice.') == 'He said "version 2" twice.'
+    assert tidy('```json\n{"a": "2.0"}\n```') == '```json\n{"a": "2.0"}\n```'
+
+
+def test_a_pasted_tool_receipt_is_sent_back_unless_asked_for(settings) -> None:  # type: ignore[no-untyped-def]
+    guard = OutputGuard(settings, SecretScanner())
+    receipt = (
+        '{"mode": "tcp", "host": "api.github.com", "sent": 3, "received": 3, "loss_percent": 0.0}'
+    )
+    reply = 'Reachable, no loss.\n\n```json\n{\n  "host": "api.github.com",\n  "sent": 3,\n  "received": 3,\n  "loss_percent": 0.0\n}\n```'
+    ctx = OutputContext(tool_texts=[receipt], operator_texts=["Can you ping api.github.com?"])
+    assert "raw_receipt" in [i.name for i in guard.check(reply, ctx).issues]
+    asked = OutputContext(
+        tool_texts=[receipt], operator_texts=["Ping it and show me the raw JSON."]
+    )
+    assert "raw_receipt" not in [i.name for i in guard.check(reply, asked).issues]
+    own_code = '```python\nconfig = {"name": "ledger", "debug": True, "port": 8000}\n```'
+    assert "raw_receipt" not in [i.name for i in guard.check(own_code, ctx).issues]

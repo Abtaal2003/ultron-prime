@@ -30,6 +30,8 @@ from src.core.memory.vault import (
     MIN_MEMORY_CHARS,
     MemoryItem,
     Vault,
+    covered_by,
+    normalise_text,
 )
 from src.core.persona.lines import THEMED
 from src.logging_setup import get_logger
@@ -214,6 +216,10 @@ class MemoryManager:
             return await self._decline(
                 candidate, chat_id, turn_id, "rejected:duplicate", "duplicate"
             )
+        if await self._already_proposed(verdict.memory_text):
+            return await self._decline(
+                candidate, chat_id, turn_id, "rejected:duplicate", "already proposed"
+            )
         pid = new_id("prop")
         await self.db.execute(
             "INSERT INTO memory_proposals(id, candidate_text, category, rationale, evidence, "
@@ -269,6 +275,8 @@ class MemoryManager:
             return evidence_issue
         if await self.vault.find_duplicate(cand.candidate_text):
             return "duplicate"
+        if await self._already_proposed(cand.candidate_text):
+            return "already proposed"
         since = (datetime.now(UTC) - timedelta(hours=1)).isoformat(timespec="milliseconds")
         recent = await self.db.scalar(
             "SELECT COUNT(*) FROM memory_proposals WHERE verdict='worthy' AND created_at>=?",
@@ -282,6 +290,21 @@ class MemoryManager:
         if pending >= MAX_PENDING:
             return "too many proposals waiting for a decision"
         return None
+
+    async def _already_proposed(self, text: str) -> bool:
+        """A proposal saying the same thing is waiting for, or already got, a "no".
+
+        The background extractor re-reads the window after every turn, so without this it
+        offers the operator the same fact again until they give in.
+        """
+        rows = await self.db.fetchall(
+            "SELECT final_text, candidate_text FROM memory_proposals WHERE verdict='worthy' "
+            "AND (user_decision IS NULL OR user_decision='declined') ORDER BY created_at DESC "
+            "LIMIT 200"
+        )
+        texts = [r["final_text"] or r["candidate_text"] for r in rows]
+        norm = normalise_text(text)
+        return any(normalise_text(t) == norm for t in texts) or covered_by(text, texts)
 
     async def resolve_evidence(
         self, chat_id: str, span: str, given_ids: list[str] | None = None

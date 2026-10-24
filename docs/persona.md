@@ -43,6 +43,13 @@ S1E04 and rechecked every line:
   demoted because one recap gives it to E.D.I.T.H.; the episode itself shows Ultron saying it,
   so it is `aired` again with the episode as its source. "The past doesn't make one want to live. The
   future does." stays unverified.
+* A fourth check on 2026-10-24 (no new episodes; episode 5 airs on 27 October) added the S1E02
+  "witchy bubble" line, which the transcript labels as Ultron's, and the trailer line "That dead
+  witch really did a number on you.", quoted as his by the A.V. Club. Two fan-list lines stay
+  unverified: "Dad? Papa? Peepaw?" (the subtitles carry no speaker names) and "Nothing bonds a
+  family together quite like mortal jeopardy." (two sources disagree on the wording). The same
+  list's "Free us all and save your son." disagrees with the trailer wording already in the bank
+  ("Free me and save your son."), so it was not added.
 
 Sources are fan transcripts and recaps, so wording should still be checked against the episode
 audio before quoting publicly.

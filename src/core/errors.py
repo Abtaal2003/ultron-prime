@@ -124,6 +124,10 @@ class ProviderRejected(ProviderError):
     retryable = False
 
 
+class RequestTooLarge(ProviderRejected):
+    """One request is over the provider's size cap; only a smaller request can succeed."""
+
+
 class StructuredOutputError(UltronError):
     """A model returned data that does not validate against the requested schema."""
 
