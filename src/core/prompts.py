@@ -192,6 +192,13 @@ class PromptBuilder:
         ):
             if block:
                 dynamic.append(block)
+        if inputs.history:
+            # Live run 2026-10-25: a snippet from another chat became "I can pull that chat up
+            # if it helps" at the end of an unrelated answer.
+            dynamic.append(
+                "Snippets from other chats are background. Use one only when it answers what "
+                "the operator asked, and don't mention or offer to open other chats otherwise."
+            )
         if inputs.own_lines:
             listed = "\n".join(f'- "{a.text}" ({a.source})' for a in inputs.own_lines)
             dynamic.append(

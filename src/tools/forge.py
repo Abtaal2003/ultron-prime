@@ -122,8 +122,16 @@ class ArtifactForge(Tool):
         "spreadsheets (simple formulas SUM, AVERAGE, MIN, MAX, COUNT, IF), PNG charts, and "
         "text/markdown/JSON/code files. You never write raw file bytes. Edits to an uploaded "
         "file create a new copy in the workspace and leave the upload untouched. Use "
-        "filesystem_scribe for small text edits and the sandbox for computed data. "
-        'Example: {"action": "create_text", "filename": "notes.md", "content": "# Notes"}.'
+        "file_system_scribe for small text edits and the sandbox for computed data. "
+        "Fill only the field named for the action. Examples: "
+        '{"action": "create_text", "filename": "notes.md", "content": "# Notes"}; '
+        '{"action": "create_document", "filename": "status.docx", "document": {"title": '
+        '"Status", "sections": [{"heading": "Done", "blocks": [{"kind": "paragraph", '
+        '"text": "Parser shipped."}]}]}}; '
+        '{"action": "create_spreadsheet", "filename": "costs.xlsx", "spreadsheet": {"sheets": '
+        '[{"name": "Costs", "columns": [{"name": "item"}, {"name": "eur", "type": "number"}], '
+        '"rows": [["coffee", 12.5]]}]}}; '
+        '{"action": "convert", "source": "costs.xlsx", "convert_to": "csv"}.'
     )
     input_model: ClassVar[type[StrictModel]] = ForgeInput
     output_model: ClassVar[type[BaseModel]] = ForgeOutput
@@ -300,7 +308,7 @@ class ArtifactForge(Tool):
         found: dict[str, bytes] = {}
         for fid in wanted:
             data, _name, _derived, _ext = await self._load_source(fid, ctx)
-            if not (data.startswith(b"\x89PNG\r\n\x1a\n") or data.startswith(b"\xff\xd8\xff")):
+            if not (data.startswith((b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff"))):
                 raise ValidationFailure(f"{fid} is not a PNG or JPEG image")
             found[fid] = data
         return found
@@ -326,9 +334,14 @@ class ArtifactForge(Tool):
                 raise NotFound("file has no versions")
             data = await store.read_version_bytes(source, version.version)
             return data, str(row["logical_name"]), [source], version.external_content
-        row = await store.find_file(source)
+        # Files made here live under outputs/, and the operator calls them by their plain name
+        # ("convert expenses.xlsx", live run 2026-10-25).
+        row = await store.find_file(source) or await store.find_file(f"{OUTPUT_DIR}/{source}")
         if row is None:
-            raise NotFound(f"no file named '{source}' (use an attachment or file id)")
+            raise NotFound(
+                f"no file named '{source}' (use an attachment id, a file id, or the name of a "
+                "file made in this workspace)"
+            )
         version = await store.latest_version(str(row["id"]))
         if version is None:
             raise NotFound("file has no versions")

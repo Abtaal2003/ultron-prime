@@ -100,6 +100,22 @@ _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 _CLAUSE_SPLIT = re.compile(r"(?<=[.!?;:])\s+|\n+")
 SELF_REPEAT_MIN_WORDS = 6
 _JSON_KEY = re.compile(r'"([A-Za-z_][A-Za-z0-9_]{1,40})"\s*:')
+_CLOSING_OFFER = re.compile(
+    r"(?:let me know if|want me to|shall i|would you like me to|if you(?:'d| would) like,? i|"
+    r"i can (?:also )?[a-z]+\b.*\bif (?:you|it helps))",
+    re.I,
+)
+_PROSE_FIELD = re.compile(r"\b([a-z][a-z0-9]*(?:_[a-z0-9]+)+|size|version)\s*[:=]\s*\S")
+_RECEIPT_TOKEN = re.compile(r"\b[0-9a-f]{32,}\b|\bversions/file_[0-9a-f]+", re.I)
+_CHAT_OFFER = re.compile(
+    r"\bi can (?:also )?(?:pull|open|bring|dig)\b[^.?!\n]{0,60}\b(?:chat|transcript|conversation)",
+    re.I,
+)
+_MEMORY_CLAIM = re.compile(
+    r"\b(?:i'?ll (?:keep|remember|hold on to)|i(?:'ve| have) (?:kept|noted|filed|stored)|noted|"
+    r"filed|stored|archived|kept it|committed to memory|on record)\b",
+    re.I,
+)
 _ASKED_RAW = re.compile(r"\b(json|raw|receipt|verbatim|full output)\b", re.I)
 
 
@@ -153,6 +169,9 @@ class OutputContext:
     recent_replies: list[str] = field(default_factory=list)
     tool_texts: list[str] = field(default_factory=list)
     sourced: bool = False
+    example_subjects: list[str] = field(default_factory=list)
+    tool_arg_keys: set[str] = field(default_factory=set)
+    memory_statuses: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -185,7 +204,7 @@ class FinalReply:
     callback_used: str | None = None
 
 
-STYLE_ISSUES = frozenset({"self_repeat", "raw_receipt"})
+STYLE_ISSUES = frozenset({"self_repeat", "raw_receipt", "closing_offer", "example_bleed"})
 """Worth one rewrite, never worth replacing the reply with a fail-safe line."""
 
 
@@ -345,18 +364,83 @@ class OutputGuard:
                 issues.append(Issue("ungrounded_host_metric", "regenerate", "no telemetry receipt"))
 
     @staticmethod
+    def _check_memory_claim(reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
+        """Saying a fact was kept when the gatekeeper turned the proposal down.
+
+        A live run (2026-10-25) answered "Noted. Kestrel it is." after the judge declined the
+        proposal, so nothing reached the operator or the archive.
+        """
+        if not ctx.memory_statuses or "queued_for_consent" in ctx.memory_statuses:
+            return
+        found = _MEMORY_CLAIM.search(_strip_code(reply))
+        if found:
+            issues.append(Issue("unbacked_memory_claim", "regenerate", found.group(0)))
+
+    @staticmethod
+    def _check_example_bleed(reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
+        """A style example's subject spoken of as if the operator had raised it.
+
+        Live runs (2026-10-22, 2026-10-25) said "the parser's fragility" to an operator who never
+        mentioned a parser: the word came from a style example's user turn. Only a definite
+        reference ("the parser", "your migration") to a word that appears in an example and
+        nowhere in the operator's words, the tools' results, retrieval or the earlier replies.
+        """
+        if not ctx.example_subjects:
+            return
+        known = " ".join(
+            [*ctx.operator_texts, *ctx.tool_texts, *ctx.retrieved_texts, *ctx.recent_replies]
+        ).lower()
+        candidates = {
+            w
+            for text in ctx.example_subjects
+            for w in re.findall(r"[a-z]{6,}", text.lower())
+            if w not in known
+        }
+        prose = _strip_code(reply).lower()
+        for word in sorted(candidates):
+            if re.search(rf"\b(?:the|your|that|this|a|an)\s+(?:[a-z]+\s+)?{word}", prose):
+                issues.append(Issue("example_bleed", "regenerate", word))
+                return
+
+    @staticmethod
+    def _check_closing_offer(reply: str, issues: list[Issue]) -> None:
+        """An offer of more help tacked on at the end, which the operational rules forbid.
+
+        A live run (2026-10-24) closed with "Let me know if you want me to pull up the ... chat."
+        Only the last prose sentence is checked; code may follow it.
+        """
+        prose = [c for c in _CLAUSE_SPLIT.split(_strip_code(reply)) if c.strip()]
+        if prose and _CLOSING_OFFER.match(prose[-1].strip()):
+            issues.append(Issue("closing_offer", "regenerate", prose[-1].strip()[:80]))
+            return
+        # Anywhere in the reply: offering to dig out another chat (2026-10-25, twice).
+        found = _CHAT_OFFER.search(_strip_code(reply))
+        if found:
+            issues.append(Issue("closing_offer", "regenerate", found.group(0)[:80]))
+
+    @staticmethod
     def _check_raw_receipt(reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
         """A tool's JSON pasted back as the answer (live run 2026-10-24, a ping receipt)."""
-        if not ctx.tool_texts or any(_ASKED_RAW.search(t) for t in ctx.operator_texts[:1]):
+        if not (ctx.tool_texts or ctx.tool_arg_keys) or any(
+            _ASKED_RAW.search(t) for t in ctx.operator_texts[:1]
+        ):
             return
-        tool_keys: set[str] = set()
+        tool_keys: set[str] = set(ctx.tool_arg_keys)  # his own call, pasted back (2026-10-25)
         for raw in ctx.tool_texts:
             tool_keys |= set(_JSON_KEY.findall(raw))
+        prose_only = _strip_code(reply)
+        if _RECEIPT_TOKEN.search(prose_only):
+            issues.append(Issue("raw_receipt", "regenerate", "a hash or storage path in the reply"))
+            return
         for block in _FENCE.findall(reply):
             keys = set(_JSON_KEY.findall(block))
             if len(keys) >= 3 and len(keys & tool_keys) >= 0.8 * len(keys):
                 issues.append(Issue("raw_receipt", "regenerate", "tool JSON pasted into the reply"))
                 return
+        # The same receipt as prose: "bytes_written: 38, size: 38, version: 1" (2026-10-25).
+        named = {k for k in _PROSE_FIELD.findall(prose_only) if k in tool_keys}
+        if len(named) >= 2:
+            issues.append(Issue("raw_receipt", "regenerate", "tool fields listed in the reply"))
 
     @staticmethod
     def _check_self_repeat(reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
@@ -490,6 +574,9 @@ class OutputGuard:
         self._check_sourced_claims(text, ctx, issues)
         self._check_self_repeat(text, ctx, issues)
         self._check_raw_receipt(text, ctx, issues)
+        self._check_closing_offer(text, issues)
+        self._check_example_bleed(text, ctx, issues)
+        self._check_memory_claim(text, ctx, issues)
         for problem in motifs.overuse(text, ctx.recent_replies):
             issues.append(Issue("motif_overuse", "note", problem))
         return OutputCheck(text=text, issues=issues, callback_used=callback)

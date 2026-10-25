@@ -26,6 +26,7 @@ from src.core.errors import (
     RateLimited,
     RequestTooLarge,
     StructuredOutputError,
+    ToolCallRejected,
 )
 from src.core.events import AgentEvent, ProviderFailover, utcnow_iso
 from src.core.llm.base import (
@@ -217,6 +218,8 @@ class LLMRouter:
             try:
                 return await call()
             except RateLimited as exc:
+                if self._not_soon(exc):
+                    raise
                 error: ProviderError = exc
                 wait = exc.retry_after_s if exc.retry_after_s is not None else delay
             except ProviderUnavailable as exc:
@@ -229,9 +232,13 @@ class LLMRouter:
             if attempt == attempts - 1:
                 raise error
             log.warning("llm_retry", route=label, attempt=attempt + 1, error=error.message)
-            await self._sleep(min(wait, 20.0) + random.uniform(0, 0.25))  # noqa: S311
+            await self._sleep(min(wait, self.settings.llm_max_wait_s) + random.uniform(0, 0.25))  # noqa: S311
             delay *= 2
         raise ProviderUnavailable("unreachable")  # pragma: no cover
+
+    def _not_soon(self, exc: RateLimited) -> bool:
+        """The limit lifts later than we'd wait (live run 2026-10-25 waited out a daily cap)."""
+        return exc.retry_after_s is not None and exc.retry_after_s > self.settings.llm_max_wait_s
 
     async def _announce(
         self, ctx: CallContext, prev: str, nxt: str, reason: str, stripped: bool
@@ -383,16 +390,25 @@ class LLMRouter:
                     return
                 except ProviderError as exc:
                     last = exc
-                    if delivered:
+                    if delivered or isinstance(exc, ToolCallRejected | RequestTooLarge):
+                        # The caller can fix both: the model repairs its call, or the request
+                        # is shrunk to the cap the error names. Failing over instead spent the
+                        # small fallback quota on requests the primary would take (2026-10-25).
                         raise
                     if not exc.retryable or attempt == attempts - 1:
                         break
+                    if isinstance(exc, RateLimited) and self._not_soon(exc):
+                        break  # a daily cap: fail over now instead of waiting minutes
                     wait = (
                         exc.retry_after_s
                         if isinstance(exc, RateLimited) and exc.retry_after_s
                         else delay
                     )
-                    await self._sleep(min(wait, 20.0) + random.uniform(0, 0.25))  # noqa: S311
+                    jitter = random.uniform(0, 0.25)  # noqa: S311
+                    log.warning(  # the streaming path used to retry without a trace
+                        "llm_retry", route=str(route), attempt=attempt + 1, error=exc.message
+                    )
+                    await self._sleep(min(wait, self.settings.llm_max_wait_s) + jitter)
                     delay *= 2
             previous = str(route)
         if isinstance(last, RequestTooLarge):
@@ -424,6 +440,13 @@ class LLMRouter:
                     )
                 except (ProviderError, StructuredOutputError) as exc:
                     self._span_error(sp, exc)
+                    log.warning(
+                        "structured_call_failed",
+                        route=str(route),
+                        schema=schema.__name__,
+                        error=exc.message,
+                        detail=(exc.detail or "")[:300],
+                    )
                     last, previous = exc, str(route)
                     continue
                 self._span_usage(sp, usage, route.model)

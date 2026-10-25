@@ -43,6 +43,12 @@ _MIN_DEADLINE_S = 10.0
 _LEVEL = {"low": "LOW", "medium": "MEDIUM", "high": "HIGH", "xhigh": "HIGH", "max": "HIGH"}
 
 
+FOREIGN_SIGNATURE = b"skip_thought_signature_validator"
+"""Sent for a function call that Gemini didn't make (one from another provider after a
+failover). Gemini 3 rejects an unsigned call in the history with a 400; this documented dummy
+value tells it to skip the check. A live run (2026-10-25) failed a turn on exactly that."""
+
+
 class GeminiProvider:
     """Adapter over ``google.genai.Client`` (async surface)."""
 
@@ -94,7 +100,7 @@ class GeminiProvider:
                             function_call=types.FunctionCall(name=p.name, args=p.arguments),
                             thought_signature=base64.b64decode(p.signature)
                             if p.signature
-                            else None,
+                            else FOREIGN_SIGNATURE,
                         )
                     )
                 elif isinstance(p, ToolResultPart):

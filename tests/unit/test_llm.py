@@ -69,9 +69,21 @@ def _http_error(
 # ---------------------------------------------------------------- shared helpers ----------------
 def test_retry_after_parsing() -> None:
     assert retry_after_seconds({"retry-after": "3"}) == 3.0
-    assert retry_after_seconds({"Retry-After": "9999"}) == 120.0
+    assert retry_after_seconds({"Retry-After": "9999"}) == 9999.0  # the router decides to wait
     assert retry_after_seconds({"retry-after": "soon"}) is None
     assert retry_after_seconds(None) is None
+
+
+def test_a_daily_cap_is_read_from_the_message_and_not_waited_out() -> None:
+    msg = (
+        "Rate limit reached for model `openai/gpt-oss-120b` on tokens per day (TPD): Limit "
+        "200000, Used 199057, Requested 5282. Please try again in 31m14.5s."
+    )
+    err = from_status(429, msg, {"retry-after": "2"})
+    assert isinstance(err, RateLimited)
+    assert err.retry_after_s == 31 * 60 + 14.5
+    minute = from_status(429, "Rate limit on tokens per minute (TPM). Please try again in 7.2s.")
+    assert isinstance(minute, RateLimited) and minute.retry_after_s == 7.2
 
 
 def test_status_classification() -> None:
@@ -720,6 +732,22 @@ async def test_router_fails_over_and_emits_event(routed: Settings) -> None:
     assert ctx.notes
 
 
+async def test_router_fails_over_at_once_when_a_limit_lifts_too_late(routed: Settings) -> None:
+    """Live run 2026-10-25: a daily cap was waited out a minute at a time until the turn died."""
+    daily = RateLimited("daily cap", retry_after_s=1874.0)
+    a = FakeProvider(failing(daily), name="anthropic")
+    gem = FakeProvider(name="gemini", default_text="rescued")
+    router, sleeper = _router(routed, {"anthropic": a, "gemini": gem})
+    assert (await router.chat("main", _req())).text == "rescued"
+    assert len(a.requests) == 1 and sleeper.calls == []
+    b = FakeProvider(failing(daily), name="anthropic")
+    gem2 = FakeProvider(name="gemini", default_text="streamed")
+    router2, sleeper2 = _router(routed, {"anthropic": b, "gemini": gem2})
+    chunks = [c async for c in router2.stream("main", _req())]
+    assert any(c.kind == "done" for c in chunks)
+    assert len(b.requests) == 1 and sleeper2.calls == []
+
+
 async def test_router_nonretryable_error_skips_retries(routed: Settings) -> None:
     a = FakeProvider(failing(ProviderRejected("bad key")), name="anthropic")
     gem = FakeProvider(name="gemini")
@@ -917,3 +945,47 @@ def test_gemini_deadline_never_below_the_api_minimum() -> None:
     long = provider.build_config(_req(model="g").model_copy(update={"timeout_s": 30}))
     assert short.http_options.timeout == 10_000
     assert long.http_options.timeout == 30_000
+
+
+async def test_gemini_signs_a_function_call_another_provider_made() -> None:
+    """Live run 2026-10-25: a failover from Groq sent an unsigned call and Gemini 3 said 400."""
+    from src.core.llm.gemini_provider import FOREIGN_SIGNATURE
+
+    fake = FakeGemini(_gem_reply("ok", None))
+    provider = GeminiProvider("k", client=fake)
+    messages = [
+        Message.user("hi"),
+        Message(role="assistant", parts=[ToolUsePart(id="a", name="web", arguments={"q": "1"})]),
+        Message(role="user", parts=[ToolResultPart(tool_use_id="a", name="web", content="r")]),
+    ]
+    await provider.chat(ChatRequest(model="gemini-3.5-flash", system="S", messages=messages))
+    assert fake.calls[0]["contents"][1].parts[0].thought_signature == FOREIGN_SIGNATURE
+
+
+def test_groq_tool_call_validation_errors_become_a_fixable_rejection() -> None:
+    import groq
+    import httpx
+    from src.core.errors import ToolCallRejected
+    from src.core.llm.groq_provider import GroqProvider
+
+    request = httpx.Request("POST", "https://api.groq.com/openai/v1/chat/completions")
+    exc = groq.APIError(
+        "Tool call validation failed: parameters for tool artifact_forge did not match schema",
+        request,
+        body=None,
+    )
+    mapped = GroqProvider._map_error(exc)
+    assert isinstance(mapped, ToolCallRejected)
+    assert "artifact_forge" in (mapped.detail or "")
+
+
+def test_nulls_in_structured_output_mean_not_given() -> None:
+    """Live run 2026-10-25: the guard's strict schema came back with nulls and failed."""
+    from src.core.guards.scope import GuardLabel
+    from src.core.llm.structured import validate_structured
+
+    label = validate_structured(
+        GuardLabel,
+        '{"guard_class": "CORE", "situation_tags": null, "volatile": null, "repeat_relation": null}',
+    )
+    assert label.situation_tags == [] and label.volatile is False

@@ -225,5 +225,60 @@ def test_a_pasted_tool_receipt_is_sent_back_unless_asked_for(settings) -> None: 
         tool_texts=[receipt], operator_texts=["Ping it and show me the raw JSON."]
     )
     assert "raw_receipt" not in [i.name for i in guard.check(reply, asked).issues]
+    scribe = (
+        '{"op": "write", "path": "notes/todo.md", "bytes_written": 38, "size": 38, "version": 1}'
+    )
+    prose = "Saved notes/todo.md.\nbytes_written: 38, size: 38, version: 1."
+    sctx = OutputContext(tool_texts=[scribe], operator_texts=["Save a todo list."])
+    assert "raw_receipt" in [i.name for i in guard.check(prose, sctx).issues]
+    assert "raw_receipt" not in [
+        i.name for i in guard.check("Saved notes/todo.md, version 1.", sctx).issues
+    ]
     own_code = '```python\nconfig = {"name": "ledger", "debug": True, "port": 8000}\n```'
     assert "raw_receipt" not in [i.name for i in guard.check(own_code, ctx).issues]
+
+
+def test_an_offer_of_more_help_at_the_end_is_sent_back(settings) -> None:  # type: ignore[no-untyped-def]
+    guard = OutputGuard(settings, SecretScanner())
+    ctx = OutputContext()
+    offers = [
+        "Here's the CSV. Let me know if you want me to pull up the old chat.",
+        "Done. Want me to add a header row too?",
+        "It passes. I can also write the tests if you'd like.",
+        "The chart is ready. I can pull that chat up if it helps.",
+        "I can pull that transcript up if your archives need prodding. The chart is ready.",
+    ]
+    for reply in offers:
+        assert "closing_offer" in [i.name for i in guard.check(reply, ctx).issues], reply
+    fine = [
+        "Let me know the traceback and you get the fix. It's line 40.",
+        "Shall I guess? No. Paste the log.",
+        "Here's the parser.\n\n```python\n# let me know if this breaks\nx = 1\n```",
+    ]
+    for reply in fine:
+        assert "closing_offer" not in [i.name for i in guard.check(reply, ctx).issues], reply
+
+
+def test_a_style_example_subject_spoken_of_as_history_is_sent_back(settings) -> None:  # type: ignore[no-untyped-def]
+    guard = OutputGuard(settings, SecretScanner())
+    example = "This legacy parser keeps beating me. I want to rip it out."
+    ctx = OutputContext(example_subjects=[example], operator_texts=["Run this: print(1/0)"])
+    bleed = "ZeroDivisionError. Your test confirms the parser's fragility."
+    assert "example_bleed" in [i.name for i in guard.check(bleed, ctx).issues]
+    clean = "ZeroDivisionError, exactly as written."
+    assert "example_bleed" not in [i.name for i in guard.check(clean, ctx).issues]
+    raised = OutputContext(
+        example_subjects=[example], operator_texts=["My parser crashes on dates."]
+    )
+    assert "example_bleed" not in [i.name for i in guard.check(bleed, raised).issues]
+
+
+def test_claiming_a_declined_memory_was_kept_is_sent_back(settings) -> None:  # type: ignore[no-untyped-def]
+    guard = OutputGuard(settings, SecretScanner())
+    declined = OutputContext(memory_statuses=["declined"])
+    queued = OutputContext(memory_statuses=["queued_for_consent"])
+    reply = "I'll keep that in mind. Noted. Kestrel it is."
+    assert "unbacked_memory_claim" in [i.name for i in guard.check(reply, declined).issues]
+    assert "unbacked_memory_claim" not in [i.name for i in guard.check(reply, queued).issues]
+    honest = "The gatekeeper turned that one down, so it isn't in the archive. Kestrel, though."
+    assert "unbacked_memory_claim" not in [i.name for i in guard.check(honest, declined).issues]

@@ -99,6 +99,9 @@ class Turn:
     stream_blocked: bool = False
     camel_done: bool = False
     compacted: bool = False
+    size_retried: bool = False
+    schema_retries: int = 0
+    memory_statuses: list[str] = field(default_factory=list)
     private: bool = False
     recent_replies: list[str] = field(default_factory=list)
     tool_texts: list[str] = field(default_factory=list)

@@ -11,6 +11,7 @@ import ast
 import json
 import os
 import tomllib
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
@@ -53,6 +54,11 @@ class ScribeInput(StrictModel):
         return self
 
 
+def readable_time(epoch: float) -> str:
+    """A timestamp a reply can quote (a live run on 2026-10-25 quoted the raw epoch)."""
+    return datetime.fromtimestamp(epoch, UTC).strftime("%Y-%m-%d %H:%M UTC")
+
+
 class Entry(BaseModel):
     """A directory entry."""
 
@@ -60,6 +66,7 @@ class Entry(BaseModel):
     kind: Literal["file", "dir", "symlink", "other"]
     size: int | None = None
     modified_epoch: float | None = None
+    modified: str | None = None
 
 
 class ScribeOutput(BaseModel):
@@ -73,6 +80,7 @@ class ScribeOutput(BaseModel):
     size: int | None = None
     kind: str | None = None
     modified_epoch: float | None = None
+    modified: str | None = None
     bytes_written: int | None = None
     version: int | None = None
     file_id: str | None = None
@@ -363,6 +371,7 @@ class FileSystemScribe(Tool):
                     kind=kind,
                     size=st.st_size if kind == "file" else None,
                     modified_epoch=st.st_mtime,
+                    modified=readable_time(st.st_mtime),
                 )
             )
         rel = relative_to_root(root, path)
@@ -387,6 +396,7 @@ class FileSystemScribe(Tool):
                 kind=_kind(path),
                 size=st.st_size,
                 modified_epoch=st.st_mtime,
+                modified=readable_time(st.st_mtime),
             )
         )
 

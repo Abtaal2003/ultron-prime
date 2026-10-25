@@ -115,6 +115,9 @@ class Settings(BaseSettings):
     llm_request_timeout_s: float = Field(60, gt=0)
     llm_max_retries: int = Field(2, ge=0, le=6)
     llm_backoff_base_s: float = Field(0.8, gt=0)
+    llm_max_wait_s: float = Field(20.0, gt=0, le=120)
+    """Longest single wait before a retry. Groq's free tier counts tokens per rolling minute,
+    so a cap of 20 seconds gave up before the window had refilled (live run 2026-10-25)."""
 
     # --- Sampling policy (7.5) ----------------------------------------------------------------
     effort_tech: Effort = "high"
@@ -166,6 +169,9 @@ class Settings(BaseSettings):
 
     # --- Memory and history -------------------------------------------------------------------
     stm_token_budget: int = Field(6000, ge=500)
+    max_request_tokens: int = Field(0, ge=0)
+    """Estimated size above which a main-model request is trimmed before it is sent; 0 is off.
+    Groq's free tier rejects any single request over 8,000 tokens."""
     history_top_k: int = Field(3, ge=0)
     memory_top_k: int = Field(4, ge=0)
     passive_cross_chat_recall: bool = True

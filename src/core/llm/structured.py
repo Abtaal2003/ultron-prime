@@ -47,11 +47,10 @@ def _inline_refs(node: Any, defs: dict[str, Any], seen: tuple[str, ...] = ()) ->
             target = defs.get(name)
             if target is None:
                 raise ValueError(f"unresolvable schema reference {ref}")
-            merged = {
+            return {
                 **_inline_refs(target, defs, (*seen, name)),
                 **{k: v for k, v in node.items() if k != "$ref"},
             }
-            return merged
         return {k: _inline_refs(v, defs, seen) for k, v in node.items()}
     if isinstance(node, list):
         return [_inline_refs(v, defs, seen) for v in node]
@@ -127,12 +126,36 @@ def _nullable(prop: dict[str, Any]) -> dict[str, Any]:
     return {"anyOf": [prop, {"type": "null"}]}
 
 
+def _drop_nulls(value: Any) -> Any:
+    """Treat ``null`` as "not given", so the field's default applies.
+
+    Strict schemas mark every optional field nullable (see ``to_strict_schema``), and models
+    fill them with ``null``: the guard's ``volatile: null`` and ``situation_tags: null`` failed
+    validation on most turns of a live run (2026-10-25) and pushed the guard onto its fallback.
+    """
+    if isinstance(value, dict):
+        return {k: _drop_nulls(v) for k, v in value.items() if v is not None}
+    if isinstance(value, list):
+        return [_drop_nulls(v) for v in value]
+    return value
+
+
 def validate_structured(model: type[T], payload: str | dict[str, Any]) -> T:
     """Parse and validate a model's structured output, raising ``StructuredOutputError``."""
     try:
         data = json.loads(payload) if isinstance(payload, str) else payload
-        return model.model_validate(data)
-    except (json.JSONDecodeError, ValidationError, TypeError) as exc:
+        return model.model_validate(_drop_nulls(data))
+    except ValidationError as exc:
+        # Where and why, without the input values: those are model output, often untrusted text.
+        where = "; ".join(
+            f"{'.'.join(str(p) for p in e['loc']) or '(root)'}: {e['type']}"
+            for e in exc.errors()[:6]
+        )
         raise StructuredOutputError(
-            f"model output did not validate against {model.__name__}", detail=str(exc)[:300]
+            f"model output did not validate against {model.__name__}", detail=where
+        ) from exc
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise StructuredOutputError(
+            f"model output did not validate against {model.__name__}",
+            detail=f"{type(exc).__name__} at position {getattr(exc, 'pos', '?')}",
         ) from exc

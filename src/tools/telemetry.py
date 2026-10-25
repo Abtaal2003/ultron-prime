@@ -112,114 +112,137 @@ def _clean_name(name: str) -> str:
     return cleaned[:48]
 
 
+_GONE = (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess)
+
+
+def _primed_processes() -> list[psutil.Process]:
+    """Processes whose CPU counters have been primed for the sampling interval."""
+    procs: list[psutil.Process] = []
+    for proc in psutil.process_iter():
+        try:
+            proc.cpu_percent(None)
+            procs.append(proc)
+        except _GONE:
+            continue
+    return procs
+
+
+def _cpu(per_core: list[float]) -> CpuInfo:
+    try:
+        f = psutil.cpu_freq()
+        freq = round(f.current, 1) if f else None
+    except (OSError, NotImplementedError, AttributeError):
+        freq = None
+    try:
+        load: list[float] | None = [round(x, 2) for x in psutil.getloadavg()]
+    except (OSError, AttributeError):
+        load = None
+    return CpuInfo(
+        percent_total=round(sum(per_core) / len(per_core), 1) if per_core else 0.0,
+        percent_per_core=[round(x, 1) for x in per_core],
+        logical_cores=psutil.cpu_count(logical=True) or len(per_core),
+        physical_cores=psutil.cpu_count(logical=False),
+        freq_mhz=freq,
+        load_avg=load,
+    )
+
+
+def _memory(skipped: list[str]) -> MemoryInfo:
+    vm = psutil.virtual_memory()
+    try:
+        sw = psutil.swap_memory()
+        swap = (sw.total, sw.used, sw.percent)
+    except (OSError, RuntimeError):
+        swap = (0, 0, 0.0)
+        skipped.append("swap")
+    return MemoryInfo(
+        total=vm.total,
+        available=vm.available,
+        used=vm.used,
+        percent=vm.percent,
+        swap_total=swap[0],
+        swap_used=swap[1],
+        swap_percent=swap[2],
+        total_gib=gib(vm.total),
+        used_gib=gib(vm.used),
+        available_gib=gib(vm.available),
+    )
+
+
+def _disks(skipped: list[str]) -> list[DiskInfo]:
+    disks: list[DiskInfo] = []
+    for part in psutil.disk_partitions(all=False)[:12]:
+        try:
+            usage = psutil.disk_usage(part.mountpoint)
+        except OSError:  # PermissionError included
+            skipped.append(f"disk:{part.mountpoint}")
+            continue
+        disks.append(
+            DiskInfo(
+                mountpoint=part.mountpoint,
+                fstype=part.fstype,
+                total=usage.total,
+                used=usage.used,
+                free=usage.free,
+                percent=usage.percent,
+                total_gib=gib(usage.total),
+                used_gib=gib(usage.used),
+                free_gib=gib(usage.free),
+            )
+        )
+    return disks
+
+
+def _network() -> NetworkInfo:
+    net = psutil.net_io_counters()
+    return NetworkInfo(
+        bytes_sent=net.bytes_sent,
+        bytes_recv=net.bytes_recv,
+        packets_sent=net.packets_sent,
+        packets_recv=net.packets_recv,
+        errin=net.errin,
+        errout=net.errout,
+    )
+
+
+def _top_processes(procs: list[psutil.Process], args: TelemetryInput) -> list[ProcessInfo]:
+    rows: list[ProcessInfo] = []
+    for proc in procs:
+        try:
+            with proc.oneshot():
+                rows.append(
+                    ProcessInfo(
+                        pid=proc.pid,
+                        name=_clean_name(proc.name()),
+                        cpu_percent=round(proc.cpu_percent(None), 1),
+                        memory_percent=round(proc.memory_percent(), 2),
+                    )
+                )
+        except _GONE:
+            continue
+    key = "cpu_percent" if args.sort_by == "cpu" else "memory_percent"
+    rows.sort(key=lambda r: getattr(r, key), reverse=True)
+    return rows[: args.top_n]
+
+
 def collect(args: TelemetryInput) -> TelemetryOutput:
     """Blocking collection; run via ``asyncio.to_thread``."""
     wanted = set(args.sections)
     skipped: list[str] = []
     out = TelemetryOutput()
-
-    procs: list[psutil.Process] = []
-    if "processes" in wanted:
-        for proc in psutil.process_iter():
-            try:
-                proc.cpu_percent(None)  # prime the per-process counter
-                procs.append(proc)
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                continue
-    if "cpu" in wanted or "processes" in wanted:
-        per_core = psutil.cpu_percent(interval=SAMPLE_INTERVAL_S, percpu=True)
-    else:
-        per_core = []
-
+    procs = _primed_processes() if "processes" in wanted else []
+    sample = "cpu" in wanted or "processes" in wanted
+    per_core = psutil.cpu_percent(interval=SAMPLE_INTERVAL_S, percpu=True) if sample else []
     if "cpu" in wanted:
-        freq = None
-        try:
-            f = psutil.cpu_freq()
-            freq = round(f.current, 1) if f else None
-        except (OSError, NotImplementedError, AttributeError):
-            freq = None
-        try:
-            load = [round(x, 2) for x in psutil.getloadavg()]
-        except (OSError, AttributeError):
-            load = None
-        out.cpu = CpuInfo(
-            percent_total=round(sum(per_core) / len(per_core), 1) if per_core else 0.0,
-            percent_per_core=[round(x, 1) for x in per_core],
-            logical_cores=psutil.cpu_count(logical=True) or len(per_core),
-            physical_cores=psutil.cpu_count(logical=False),
-            freq_mhz=freq,
-            load_avg=load,
-        )
+        out.cpu = _cpu(per_core)
     if "memory" in wanted:
-        vm = psutil.virtual_memory()
-        try:
-            sw = psutil.swap_memory()
-            swap = (sw.total, sw.used, sw.percent)
-        except (OSError, RuntimeError):
-            swap = (0, 0, 0.0)
-            skipped.append("swap")
-        out.memory = MemoryInfo(
-            total=vm.total,
-            available=vm.available,
-            used=vm.used,
-            percent=vm.percent,
-            swap_total=swap[0],
-            swap_used=swap[1],
-            swap_percent=swap[2],
-            total_gib=gib(vm.total),
-            used_gib=gib(vm.used),
-            available_gib=gib(vm.available),
-        )
+        out.memory = _memory(skipped)
     if "disk" in wanted:
-        disks: list[DiskInfo] = []
-        for part in psutil.disk_partitions(all=False)[:12]:
-            try:
-                usage = psutil.disk_usage(part.mountpoint)
-            except (PermissionError, OSError):
-                skipped.append(f"disk:{part.mountpoint}")
-                continue
-            disks.append(
-                DiskInfo(
-                    mountpoint=part.mountpoint,
-                    fstype=part.fstype,
-                    total=usage.total,
-                    used=usage.used,
-                    free=usage.free,
-                    percent=usage.percent,
-                    total_gib=gib(usage.total),
-                    used_gib=gib(usage.used),
-                    free_gib=gib(usage.free),
-                )
-            )
-        out.disks = disks
+        out.disks = _disks(skipped)
     if "network" in wanted:
-        net = psutil.net_io_counters()
-        out.network = NetworkInfo(
-            bytes_sent=net.bytes_sent,
-            bytes_recv=net.bytes_recv,
-            packets_sent=net.packets_sent,
-            packets_recv=net.packets_recv,
-            errin=net.errin,
-            errout=net.errout,
-        )
+        out.network = _network()
     if "processes" in wanted:
-        rows: list[ProcessInfo] = []
-        for proc in procs:
-            try:
-                with proc.oneshot():
-                    rows.append(
-                        ProcessInfo(
-                            pid=proc.pid,
-                            name=_clean_name(proc.name()),
-                            cpu_percent=round(proc.cpu_percent(None), 1),
-                            memory_percent=round(proc.memory_percent(), 2),
-                        )
-                    )
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                continue
-        key = "cpu_percent" if args.sort_by == "cpu" else "memory_percent"
-        rows.sort(key=lambda r: getattr(r, key), reverse=True)
-        out.top_processes = rows[: args.top_n]
+        out.top_processes = _top_processes(procs, args)
     if "uptime" in wanted:
         boot = psutil.boot_time()
         out.boot_time_epoch = boot

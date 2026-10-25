@@ -126,7 +126,7 @@ async def preview(file_id: str, version: int, session: Authed, state: State) -> 
     if (
         rec.mime.startswith("text/")
         or rec.logical_name.lower().endswith(_TEXT_SUFFIX)
-        or rec.mime in {"application/json"}
+        or rec.mime == "application/json"
     ):
         text = data[:TEXT_PREVIEW_BYTES].decode("utf-8", errors="replace")
         return JSONResponse(

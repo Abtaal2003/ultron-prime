@@ -31,6 +31,7 @@ only routing values, so checkpoints stay small and serialisable.
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import time
 from collections.abc import AsyncIterator
@@ -52,6 +53,7 @@ from src.core.errors import (
     PolicyDenied,
     ProviderError,
     RequestTooLarge,
+    ToolCallRejected,
     UltronError,
 )
 from src.core.events import (
@@ -167,7 +169,7 @@ _SOURCE_TOOLS = frozenset(
 _TECH_WORDS = re.compile(
     r"\b(ping|network|latency|cpu|ram|memory usage|disk|processes|uptime|telemetry|"
     r"run (?:the |my |these |this |it |a )?(?:quick |small )?(?:tests?|code|script)|execute|"
-    r"sandbox|pytest)\b",
+    r"sandbox|pytest|dns|resolve|nslookup|reachable|ip address(?:es)?)\b",
     re.I,
 )
 """Words that ask for the host or sandbox tools, whatever the guard called the turn."""
@@ -181,6 +183,57 @@ _NOT_A_RUN_REQUEST = re.compile(
 )
 SANDBOX_TOOL = "isolated_python_sandbox"
 COMPACT_RESULT_CHARS = 1200
+MAX_SCHEMA_RETRIES = 2
+MIN_REPLY_TOKENS = 1536
+_LIMIT = re.compile(r"Limit (\d+), Requested \d+")
+ROOMY_REPLY_TOKENS = 3000
+EMPTY_REPLY_TEXT = (
+    "I came back with nothing on that one, which isn't like me. Ask again, and if it was a big "
+    "request, ask for it in smaller pieces."
+)
+
+
+def argument_keys(messages: list[Message]) -> set[str]:
+    """Every key in the arguments of the tool calls made so far this turn."""
+    keys: set[str] = set()
+
+    def walk(value: Any) -> None:
+        if isinstance(value, dict):
+            keys.update(str(k) for k in value)
+            for v in value.values():
+                walk(v)
+        elif isinstance(value, list):
+            for v in value:
+                walk(v)
+
+    for msg in messages:
+        for part in msg.parts:
+            if isinstance(part, ToolUsePart):
+                walk(part.arguments)
+    return keys
+
+
+def request_tokens(request: ChatRequest) -> int:
+    """A conservative size estimate for one request: prompt, tool schemas and every message.
+
+    Four characters a token undercounted gpt-oss on this prompt (Markdown, JSON schemas), and
+    Groq still refused requests the estimate had passed (live run 2026-10-25).
+    """
+    chars = len(request.system) + len(request.system_dynamic)
+    chars += sum(
+        len(json.dumps(t.parameters)) + len(t.name) + len(t.description) for t in request.tools
+    )
+    for msg in request.messages:
+        for part in msg.parts:
+            if isinstance(part, ToolResultPart):
+                chars += len(part.content)
+            elif isinstance(part, ToolUsePart):
+                chars += len(json.dumps(part.arguments)) + len(part.name)
+            else:
+                chars += len(getattr(part, "text", "") or "")
+    return (chars * 10 + 31) // 32  # about 3.2 characters a token: chars/4 undercounted on Groq
+
+
 COMPACT_WINDOW_MESSAGES = 2
 _ASKED_QUOTE = re.compile(
     r"\b(quote|exact(ly)? what you said|what did you (say|tell)|what you told|"
@@ -195,6 +248,13 @@ _FILE_TOOLS = {
     "artifact_forge",
 }
 ERROR_TEXT = "The primary mind is unavailable and so are the spares. Try again in a moment."
+TIMEOUT_TEXT = "That took longer than I allow myself, so I stopped. Ask again in a minute."
+INTERNAL_ERROR_TEXT = (
+    "Something on my side broke before I could finish ({kind}). Ask again, and if it keeps "
+    "happening, the logs have the details."
+)
+"""Used to be the "tool_error" status line, which claimed the error was reported when it wasn't
+(live run 2026-10-25). Only the exception's class name is shown, never its message."""
 
 
 class TurnState(TypedDict, total=False):
@@ -261,6 +321,8 @@ class UltronAgent:
         self.camel = CamelBridge(self)
         self._turns: dict[str, Turn] = {}
         self._by_chat: dict[str, str] = {}
+        self.learned_request_cap: int | None = None
+        """A per-request token cap read from a provider's own "too large" error."""
         self.graph = self._build_graph(checkpointer or InMemorySaver())
 
     # ------------------------------------------------------------------------ public API --
@@ -518,12 +580,13 @@ class UltronAgent:
             await self._finish(turn, "error", self.lines.line("budget_exceeded"))
         except Exception as exc:
             log.exception("turn_failed", turn_id=turn.turn_id)
-            kind = "unavailable" if isinstance(exc, ProviderError) else "internal"
-            await self._finish(
-                turn,
-                "error",
-                ERROR_TEXT if kind == "unavailable" else self.lines.line("tool_error"),
-            )
+            if isinstance(exc, ProviderError):
+                text = ERROR_TEXT
+            elif isinstance(exc, TimeoutError) or type(exc).__name__.endswith("TimeoutError"):
+                text = TIMEOUT_TEXT  # langgraph's node timeout isn't a TimeoutError subclass
+            else:
+                text = INTERNAL_ERROR_TEXT.format(kind=type(exc).__name__)
+            await self._finish(turn, "error", text)
         finally:
             if not turn.done.is_set():
                 await self._finish(turn, "error", ERROR_TEXT)
@@ -1011,6 +1074,11 @@ class UltronAgent:
             charter_text=self.pack.charter,
             known_urls=set(turn.known_urls),
             retrieved_texts=list(turn.retrieved_texts),
+            example_subjects=[]
+            if turn.compacted
+            else [a.example_user for a in turn.prompt_inputs.anchors],
+            tool_arg_keys=argument_keys(turn.loop_messages),
+            memory_statuses=list(turn.memory_statuses),
             operator_texts=operator,
             tool_names=set(turn.tool_names),
             tool_numbers=list(turn.tool_numbers),
@@ -1033,6 +1101,37 @@ class UltronAgent:
         assert turn.user_message is not None
         return merge_alternating([*example_turns, *window, turn.user_message, *turn.loop_messages])
 
+    def _turn_tools(
+        self, turn: Turn, iteration: int, capped: bool
+    ) -> tuple[list[ToolSpec], ToolChoice, list[str]]:
+        """The tools for this model call, whether one is required, and notes for the prompt."""
+        tools = [] if capped or turn.camel_done else self._tool_specs(turn)
+        choice: ToolChoice = "auto"
+        notes: list[str] = []
+        if self._must_run_first(turn, iteration, tools):
+            # A live run (2026-10-24) answered "write it and run a quick test" with the code and
+            # no run. The first call may only use the sandbox; the rest of the turn is normal.
+            tools = [t for t in tools if t.name == SANDBOX_TOOL]
+            choice = "required"
+            notes.append(
+                "The operator asked you to run code. Run it in the sandbox now, then answer "
+                "with the code and the real output."
+            )
+        if turn.private:
+            # Live run 2026-10-24: in a private chat the model wrote out a memory proposal as
+            # JSON. Nothing here is archived, so the tool is not offered and he is told why.
+            tools = [t for t in tools if t.name != "propose_memory"]
+            notes.append(
+                "This chat is private. Nothing in it is archived, so don't offer to remember "
+                "anything and don't draft memory notes."
+            )
+        if capped:
+            notes.append(
+                "The tool budget for this turn is spent. Answer now with what you have, and say "
+                "plainly what is missing."
+            )
+        return tools, choice, notes
+
     async def n_llm_decide(self, state: TurnState) -> dict[str, Any]:
         """One call to the main model (streamed through the guarded sentence gate)."""
         turn = self._turn(state)
@@ -1043,32 +1142,9 @@ class UltronAgent:
             iteration >= self.settings.max_tool_iterations
             or turn.gate.tool_time_s >= self.settings.max_tool_time_s
         )
-        tools = [] if capped or turn.camel_done else self._tool_specs(turn)
         built = self.prompts.build(turn.prompt_inputs)
-        system_dynamic = built.system_dynamic
-        tool_choice: ToolChoice = "auto"
-        if self._must_run_first(turn, iteration, tools):
-            # A live run (2026-10-24) answered "write it and run a quick test" with the code and
-            # no run. The first call may only use the sandbox; the rest of the turn is normal.
-            tools = [t for t in tools if t.name == SANDBOX_TOOL]
-            tool_choice = "required"
-            system_dynamic += (
-                "\n\nThe operator asked you to run code. Run it in the sandbox now, then answer "
-                "with the code and the real output."
-            )
-        if turn.private:
-            # Live run 2026-10-24: in a private chat the model wrote out a memory proposal as
-            # JSON. Nothing here is archived, so the tool is not offered and he is told why.
-            tools = [t for t in tools if t.name != "propose_memory"]
-            system_dynamic += (
-                "\n\nThis chat is private. Nothing in it is archived, so don't offer to remember "
-                "anything and don't draft memory notes."
-            )
-        if capped:
-            system_dynamic += (
-                "\n\nThe tool budget for this turn is spent. Answer now with what you have, "
-                "and say plainly what is missing."
-            )
+        tools, tool_choice, notes = self._turn_tools(turn, iteration, capped)
+        system_dynamic = built.system_dynamic + "".join(f"\n\n{n}" for n in notes)
         request = ChatRequest(
             system=built.system,
             system_dynamic=system_dynamic,
@@ -1085,6 +1161,7 @@ class UltronAgent:
             timeout_s=self.settings.llm_decide_timeout_s,
             role="main",
         )
+        request = self._fit_request(turn, request)
         streamer = SentenceStreamer(
             self.guards.output, self._output_ctx(turn), raw=self.settings.stream_mode == "raw"
         )
@@ -1102,12 +1179,37 @@ class UltronAgent:
                     calls.append(chunk.tool_call)
                 elif chunk.kind == "done":
                     response = chunk.response
-        except RequestTooLarge:
-            if text_parts or turn.compacted:
+        except ToolCallRejected as exc:
+            if text_parts or turn.schema_retries >= MAX_SCHEMA_RETRIES:
                 raise
+            turn.schema_retries += 1
+            log.warning("tool_call_rejected_retrying", turn_id=turn.turn_id)
+            turn.loop_messages.append(
+                Message.user(
+                    "Your last tool call was rejected before it ran, because its arguments "
+                    f"didn't match the tool's schema: {(exc.detail or '')[:600]}\nCall the "
+                    "tool again with arguments that match, following its description's examples."
+                )
+            )
+            return await self.n_llm_decide(state)
+        except RequestTooLarge as exc:
+            if text_parts or turn.size_retried:
+                raise
+            turn.size_retried = True
+            log.warning(
+                "request_too_large",
+                turn_id=turn.turn_id,
+                estimated=request_tokens(request),
+                max_tokens=request.max_tokens,
+                detail=(exc.detail or "")[:200],
+            )
+            limit = _LIMIT.search(exc.detail or "")
+            if limit:
+                # Learn the provider's real cap ("Limit 6000, Requested 6512") and fit to it.
+                learned = int(int(limit.group(1)) * 0.9)
+                self.learned_request_cap = min(self.learned_request_cap or learned, learned)
             # Live run 2026-10-24: a read, a write and the history came to 9,016 tokens against
             # an 8,000 cap. Shrink once and ask again rather than fail the turn.
-            log.warning("request_too_large_compacting", turn_id=turn.turn_id)
             self._compact(turn)
             return await self.n_llm_decide(state)
         for piece in streamer.flush():
@@ -1127,6 +1229,30 @@ class UltronAgent:
             turn.pending = [PendingCall(c) for c in calls]
             return {"route": "tools", "iteration": iteration + 1}
         return {"route": "answer", "iteration": iteration}
+
+    def _fit_request(self, turn: Turn, request: ChatRequest) -> ChatRequest:
+        """Keep prompt plus reply budget under ``max_request_tokens`` (0 means no cap).
+
+        Groq counts the reply allowance against its per-request cap, so a 4,900-token prompt
+        with ``max_tokens=4096`` was "Requested 9016" (live run 2026-10-25). The reply budget
+        shrinks first; history and long tool results are cut only when that isn't enough.
+        """
+        caps = [c for c in (self.settings.max_request_tokens, self.learned_request_cap) if c]
+        cap = min(caps) if caps else 0
+        if not cap or request_tokens(request) + request.max_tokens <= cap:
+            return request
+        if cap - request_tokens(request) < MIN_REPLY_TOKENS:
+            log.info("request_trimmed_before_sending", turn_id=turn.turn_id)
+            self._compact(turn)
+            request = request.model_copy(update={"messages": self._messages(turn, [])})
+        room = cap - request_tokens(request)
+        budget = max(MIN_REPLY_TOKENS, min(room, request.max_tokens))
+        update: dict[str, Any] = {"max_tokens": budget}
+        if budget < ROOMY_REPLY_TOKENS:
+            # Reasoning models spend the reply budget on thinking first; with little room, a
+            # big tool call came back empty (live run 2026-10-25). Think less, answer more.
+            update["sampling"] = request.sampling.model_copy(update={"effort": "low"})
+        return request.model_copy(update=update)
 
     @staticmethod
     def _compact(turn: Turn) -> None:
@@ -1425,6 +1551,8 @@ class UltronAgent:
                 continue
             raw = canonical_json(result.data)
             turn.tool_texts.append(raw[:20_000])
+            if call.name == "propose_memory" and isinstance(result.data, dict):
+                turn.memory_statuses.append(str(result.data.get("status", "")))
             tool = self.registry.get(call.name)
             if call.name in _FILE_TOOLS:
                 turn.readable_files |= file_names(raw)
@@ -1471,7 +1599,8 @@ class UltronAgent:
         assert scope is not None
         reply = turn.streamed_text.strip()
         if not reply:
-            reply = self.lines.line("tool_error")
+            # The "tool_error" status line said an error was reported when none was.
+            reply = EMPTY_REPLY_TEXT
         ctx = self._output_ctx(turn)
         rows = await self.history.db.fetchall(
             "SELECT content FROM messages WHERE chat_id=? AND role='assistant'", (turn.chat_id,)
@@ -1495,8 +1624,9 @@ class UltronAgent:
                 "quotes, numbers, identifiers, and files that tool results in this conversation "
                 "support. If a tool was unavailable or denied, say you couldn't check rather than "
                 "answering from memory as if you had. Don't reuse sentences from your earlier "
-                "replies, and say what a tool found instead of pasting its JSON. Do not mention "
-                "this note."
+                "replies, say what a tool found instead of pasting its JSON, and end without "
+                "offering more help. The style examples are not this operator's history: never "
+                "refer to their subjects. Do not mention this note."
             )
             request = ChatRequest(
                 system=built.system,

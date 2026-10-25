@@ -124,6 +124,13 @@ class ProviderRejected(ProviderError):
     retryable = False
 
 
+class ToolCallRejected(ProviderRejected):
+    """The provider refused the model's own tool call because its arguments broke the schema.
+
+    The model can fix this itself when told what was wrong, so the turn asks it again.
+    """
+
+
 class RequestTooLarge(ProviderRejected):
     """One request is over the provider's size cap; only a smaller request can succeed."""
 

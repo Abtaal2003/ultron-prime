@@ -185,7 +185,7 @@ class Tool(ABC):
 
     async def cleanup(self, ctx: ToolContext) -> None:
         """Release per-call resources. Always runs from ``finally``; must not raise."""
-        return None
+        return
 
     def outbound_strings(self, args: Any) -> list[tuple[str, str]]:
         """Return ``(field_name, outbound_value)`` pairs for egress provenance checks."""

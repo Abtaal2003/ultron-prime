@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 from collections.abc import AsyncIterator
 from typing import Any
 
-from src.core.errors import ProviderUnavailable, StructuredOutputError
+from src.core.errors import ProviderUnavailable, StructuredOutputError, ToolCallRejected
 from src.core.llm.base import (
     ChatRequest,
     ChatResponse,
@@ -41,6 +42,9 @@ _STOP: dict[str, StopReason] = {
     "length": "max_tokens",
     "content_filter": "refusal",
 }
+
+
+_BAD_TOOL_CALL = re.compile(r"tool call validation failed|failed to call a function", re.I)
 
 
 class GroqProvider:
@@ -201,11 +205,20 @@ class GroqProvider:
     def _map_error(exc: Exception) -> Exception:
         import groq
 
+        message = str(exc)
+        if isinstance(exc, groq.APIError) and _BAD_TOOL_CALL.search(message):
+            # Groq checks the model's tool arguments against the schema server-side and fails
+            # the whole request (live run 2026-10-25, three forge calls). The model can fix it.
+            return ToolCallRejected(
+                "the model's tool call did not match its schema", detail=message[:800]
+            )
         if isinstance(exc, groq.APIStatusError):
             headers = getattr(getattr(exc, "response", None), "headers", None)
-            return from_status(exc.status_code, str(exc), headers)
+            return from_status(exc.status_code, message, headers)
         if isinstance(exc, groq.APITimeoutError | groq.APIConnectionError):
             return from_status(None, type(exc).__name__)
+        if isinstance(exc, groq.APIError):  # an error event inside a stream
+            return from_status(None, message)
         return exc
 
     # ------------------------------------------------------------------------------ calls --

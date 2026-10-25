@@ -115,6 +115,9 @@ async def test_asking_for_a_ping_or_a_test_run_offers_the_host_tools(
             rt, script, "Can you ping api.github.com to check my network?", "CONVERSATION"
         )
         assert "network_ping_diagnostic" in names and "isolated_python_sandbox" in names
+        for text in ("Resolve pypi.org for me.", "Is api.github.com reachable?"):
+            names = await offered(rt, script, text, "CONVERSATION")
+            assert "network_ping_diagnostic" in names, text
         # A run request goes straight to the sandbox (see the next test).
         names = await offered(
             rt, script, "Write the test file and run the tests in the sandbox.", "CONVERSATION"
@@ -210,5 +213,86 @@ async def test_a_private_chat_is_not_offered_the_memory_tool(
         assert "This chat is private" in request.system_dynamic
         public = await offered(rt, script, "Remember that I like pytest.", "CONVERSATION")
         assert "propose_memory" in public
+    finally:
+        await rt.close()
+
+
+async def test_a_request_estimated_over_the_cap_is_trimmed_before_sending(
+    settings: Settings, script: RoleScript
+) -> None:
+    from src.core.agent import request_tokens
+
+    rt = await full_runtime(settings, script, max_request_tokens=1500)
+    try:
+        assert rt.services.history is not None
+        script.push("guard", guard(task_type="TECH"))
+        script.push(
+            "main",
+            Reply(
+                tool_calls=[("host_telemetry_monitor", {"sections": ["processes"], "top_n": 15})]
+            ),
+            Reply(text="Fifteen processes."),
+        )
+        await run(rt, await rt.services.history.create_chat("t"), "Which processes are busy?")
+        second = script.requests("main")[-1]
+        results = [
+            p.content for m in second.messages for p in m.parts if isinstance(p, ToolResultPart)
+        ]
+        assert results and all(len(r) <= 1300 for r in results)
+        assert (
+            request_tokens(second)
+            < request_tokens(second.model_copy(update={"messages": []})) + 2000
+        )
+    finally:
+        await rt.close()
+
+
+async def test_a_tool_call_the_provider_rejects_is_retried_with_the_reason(
+    settings: Settings, script: RoleScript
+) -> None:
+    """Live run 2026-10-25: Groq rejected three malformed forge calls and each turn failed."""
+    from src.core.errors import ToolCallRejected
+    from src.core.events import AgentDone
+
+    rt = await full_runtime(settings, script)
+    try:
+        assert rt.services.history is not None
+        script.push("guard", guard(task_type="TECH"))
+        script.push(
+            "main",
+            Reply(
+                error=ToolCallRejected(
+                    "bad call", detail="/spreadsheet: missing properties: 'sheets'"
+                )
+            ),
+            Reply(tool_calls=[("host_telemetry_monitor", {"sections": ["cpu"]})]),
+            Reply(text="CPU is fine."),
+        )
+        _, events = await run(rt, await rt.services.history.create_chat("t"), "How is the cpu?")
+        assert of_type(events, AgentDone)[-1].status == "ok"
+        retry = script.requests("main")[1]
+        notes = [m.text() for m in retry.messages if m.role == "user"]
+        assert any("missing properties: 'sheets'" in n for n in notes)
+    finally:
+        await rt.close()
+
+
+async def test_the_cap_in_a_too_large_error_is_learned_for_later_requests(
+    settings: Settings, script: RoleScript
+) -> None:
+    from src.core.errors import RequestTooLarge
+
+    rt = await full_runtime(settings, script)
+    try:
+        assert rt.services.history is not None
+        script.push("guard", guard(task_type="CONVERSATION"))
+        script.push(
+            "main",
+            Reply(error=RequestTooLarge("too large", detail="TPM: Limit 6000, Requested 6512")),
+            Reply(text="Fine."),
+        )
+        await run(rt, await rt.services.history.create_chat("t"), "How are you?")
+        assert rt.agent.learned_request_cap == 5400
+        assert script.requests("main")[-1].max_tokens <= 5400
     finally:
         await rt.close()

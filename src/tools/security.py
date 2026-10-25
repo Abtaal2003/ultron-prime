@@ -143,7 +143,7 @@ def validate_host(host: str, *, max_len: int = 64) -> ValidatedHost:
         return ValidatedHost(host=host, is_ip=True, suspicious=False)
     except ValueError:
         pass
-    bare = host[:-1] if host.endswith(".") else host
+    bare = host.removesuffix(".")
     if not bare or not bare.isascii():
         raise ValidationFailure("host must be ASCII (use punycode for IDNs)")
     labels = bare.split(".")

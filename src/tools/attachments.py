@@ -23,6 +23,7 @@ from src.files.types import UPLOAD_TYPES, extension_of
 from src.tools.base import StrictModel, Tool, ToolContext, ToolOutput, truncate_text
 
 Op = Literal["list", "outline", "read", "range", "find", "page_image"]
+MAX_FIND_PASSAGES = 20
 DEFAULT_MAX_CHARS = 24_000
 
 
@@ -127,6 +128,9 @@ class AttachmentReader(Tool):
     input_model: ClassVar[type[StrictModel]] = ReaderInput
     output_model: ClassVar[type[BaseModel]] = ReaderOutput
     timeout_s: ClassVar[float] = 60.0
+    # Without this the orchestrator labelled uploads "web" and asked the reader for KeyFacts
+    # with character offsets, which failed on a one-page PDF invoice (live run 2026-10-25).
+    quarantine_source: ClassVar[str | None] = "uploads_external"
     start_line: ClassVar[str] = "read_start"
     done_line: ClassVar[str] = "read_done"
 
@@ -147,105 +151,100 @@ class AttachmentReader(Tool):
         rec = await store.get_attachment(inp.attachment_id)
         if rec is None or rec.chat_id != ctx.chat_id:
             raise NotFound("no such attachment in this chat")
-        family = family_of(rec)
-        settings = ctx.settings
-        taints = family in EXTERNAL_FAMILIES or settings.quarantine_mode == "strict"
-        quarantine = requires_quarantine(settings, family)
-        sources = [f"attachment:{rec.id}"]
-        scanner = ctx.services.scanner
+        read = _Read(rec, ctx)
+        handlers = {
+            "page_image": self._page_image,
+            "range": self._range,
+            "outline": self._outline,
+            "find": self._find,
+            "read": self._read,
+        }
+        data, truncated = await handlers[inp.op](inp, read)
+        return ToolOutput(
+            data=data,
+            sources=[f"attachment:{rec.id}"],
+            truncated=truncated,
+            taints_turn=read.taints,
+            quarantine=read.quarantine,
+        )
 
-        def clean(text: str) -> str:
-            return scanner.redact(text) if rec.secret_warning else text
+    @staticmethod
+    async def _page_image(inp: ReaderInput, r: _Read) -> tuple[ReaderOutput, bool]:
+        if r.family != "pdf":
+            raise ValidationFailure("page_image works on PDFs only")
+        assert inp.page is not None
+        data = await r.raw()
+        try:
+            png = await asyncio.to_thread(render_pdf_page, data, inp.page)
+        except ValueError as exc:
+            raise ValidationFailure(str(exc)) from exc
+        assert r.ctx.chat_id is not None
+        image = await r.store.save_attachment(
+            chat_id=r.ctx.chat_id,
+            original_name=f"{r.rec.safe_name} page {inp.page}.png",
+            safe_name=f"{r.rec.safe_name.rsplit('.', 1)[0]}_p{inp.page}.png",
+            detected_mime="image/png",
+            data=png,
+            message_id=None,
+        )
+        out = ReaderOutput(
+            op="page_image",
+            image_attachment_id=image.id,
+            note="rendered page stored as an image attachment",
+        )
+        return out, False
 
-        if inp.op == "page_image":
-            if family != "pdf":
-                raise ValidationFailure("page_image works on PDFs only")
-            assert inp.page is not None
-            data = await asyncio.to_thread(store.attachment_path(rec).read_bytes)
-            try:
-                png = await asyncio.to_thread(render_pdf_page, data, inp.page)
-            except ValueError as exc:
-                raise ValidationFailure(str(exc)) from exc
-            image = await store.save_attachment(
-                chat_id=ctx.chat_id,
-                original_name=f"{rec.safe_name} page {inp.page}.png",
-                safe_name=f"{rec.safe_name.rsplit('.', 1)[0]}_p{inp.page}.png",
-                detected_mime="image/png",
-                data=png,
-                message_id=None,
-            )
-            return ToolOutput(
-                data=ReaderOutput(
-                    op="page_image",
-                    image_attachment_id=image.id,
-                    note="rendered page stored as an image attachment",
-                ),
-                sources=sources,
-                taints_turn=taints,
-                quarantine=quarantine,
-            )
-        if inp.op == "range":
-            if family != "xlsx":
-                raise ValidationFailure("range works on spreadsheets only")
-            assert inp.sheet is not None
-            assert inp.cell_range is not None
-            data = await asyncio.to_thread(store.attachment_path(rec).read_bytes)
-            try:
-                rows = await asyncio.to_thread(read_range, data, inp.sheet, inp.cell_range.upper())
-            except KeyError as exc:
-                raise NotFound(str(exc.args[0])) from exc
-            except ValueError as exc:
-                raise ValidationFailure(str(exc)) from exc
-            return ToolOutput(
-                data=ReaderOutput(op="range", rows=[[clean(c) for c in r] for r in rows]),
-                sources=sources,
-                taints_turn=taints,
-                quarantine=quarantine,
-            )
-        if inp.op == "outline":
-            data = await asyncio.to_thread(store.attachment_path(rec).read_bytes)
-            parsed = await asyncio.to_thread(
-                parse_attachment, data, family, extension_of(rec.safe_name)
-            )
-            return ToolOutput(
-                data=ReaderOutput(
-                    op="outline",
-                    outline=[clean(o) for o in parsed.outline],
-                    warnings=parsed.warnings,
-                    attachments=[_info(rec)],
-                ),
-                sources=sources,
-                taints_turn=taints,
-                quarantine=quarantine,
-            )
-        chunks = await store.get_chunks(rec.id, inp.pages)
-        if inp.op == "find":
-            assert inp.query is not None
-            needle = inp.query.lower()
-            passages: list[Passage] = []
-            for chunk in chunks:
-                text = str(chunk["text"])
-                for m in re.finditer(re.escape(needle), text.lower()):
-                    lo, hi = max(0, m.start() - 120), min(len(text), m.end() + 120)
-                    passages.append(Passage(page=chunk["page"], text=clean(text[lo:hi])))
-                    if len(passages) >= 20:
-                        break
-                if len(passages) >= 20:
-                    break
-            return ToolOutput(
-                data=ReaderOutput(
-                    op="find", passages=passages, note="" if passages else "no matches"
-                ),
-                sources=sources,
-                taints_turn=taints,
-                quarantine=quarantine,
-            )
-        # read
+    @staticmethod
+    async def _range(inp: ReaderInput, r: _Read) -> tuple[ReaderOutput, bool]:
+        if r.family != "xlsx":
+            raise ValidationFailure("range works on spreadsheets only")
+        assert inp.sheet is not None
+        assert inp.cell_range is not None
+        data = await r.raw()
+        try:
+            rows = await asyncio.to_thread(read_range, data, inp.sheet, inp.cell_range.upper())
+        except KeyError as exc:
+            raise NotFound(str(exc.args[0])) from exc
+        except ValueError as exc:
+            raise ValidationFailure(str(exc)) from exc
+        return ReaderOutput(op="range", rows=[[r.clean(c) for c in row] for row in rows]), False
+
+    @staticmethod
+    async def _outline(inp: ReaderInput, r: _Read) -> tuple[ReaderOutput, bool]:
+        data = await r.raw()
+        parsed = await asyncio.to_thread(
+            parse_attachment, data, r.family, extension_of(r.rec.safe_name)
+        )
+        out = ReaderOutput(
+            op="outline",
+            outline=[r.clean(o) for o in parsed.outline],
+            warnings=parsed.warnings,
+            attachments=[_info(r.rec)],
+        )
+        return out, False
+
+    @staticmethod
+    async def _find(inp: ReaderInput, r: _Read) -> tuple[ReaderOutput, bool]:
+        assert inp.query is not None
+        needle = inp.query.lower()
+        passages: list[Passage] = []
+        for chunk in await r.store.get_chunks(r.rec.id, inp.pages):
+            text = str(chunk["text"])
+            for m in re.finditer(re.escape(needle), text.lower()):
+                lo, hi = max(0, m.start() - 120), min(len(text), m.end() + 120)
+                passages.append(Passage(page=chunk["page"], text=r.clean(text[lo:hi])))
+                if len(passages) >= MAX_FIND_PASSAGES:
+                    return ReaderOutput(op="find", passages=passages), True
+        note = "" if passages else "no matches"
+        return ReaderOutput(op="find", passages=passages, note=note), False
+
+    @staticmethod
+    async def _read(inp: ReaderInput, r: _Read) -> tuple[ReaderOutput, bool]:
         out: list[Passage] = []
         used = 0
         truncated = False
-        for chunk in chunks:
-            text, _ = truncate_text(clean(str(chunk["text"])), inp.max_chars - used)
+        for chunk in await r.store.get_chunks(r.rec.id, inp.pages):
+            text, _ = truncate_text(r.clean(str(chunk["text"])), inp.max_chars - used)
             if not text:
                 truncated = True
                 break
@@ -255,12 +254,28 @@ class AttachmentReader(Tool):
                 truncated = True
                 break
         note = "output truncated; request specific pages" if truncated else ""
-        if family == "image":
+        if r.family == "image":
             note = "images carry no extracted text; the image itself is shown to vision models"
-        return ToolOutput(
-            data=ReaderOutput(op="read", passages=out, note=note),
-            sources=sources,
-            truncated=truncated,
-            taints_turn=taints,
-            quarantine=quarantine,
-        )
+        return ReaderOutput(op="read", passages=out, note=note), truncated
+
+
+class _Read:
+    """What every operation on one attachment needs."""
+
+    def __init__(self, rec: AttachmentRecord, ctx: ToolContext) -> None:
+        assert ctx.services is not None
+        self.rec = rec
+        self.ctx = ctx
+        self.store = ctx.services.files
+        self.family = family_of(rec)
+        self.taints = self.family in EXTERNAL_FAMILIES or ctx.settings.quarantine_mode == "strict"
+        self.quarantine = requires_quarantine(ctx.settings, self.family)
+        self._scanner = ctx.services.scanner
+
+    def clean(self, text: str) -> str:
+        """Redact secrets when the upload was flagged for them."""
+        return self._scanner.redact(text) if self.rec.secret_warning else text
+
+    async def raw(self) -> bytes:
+        """The original bytes."""
+        return await asyncio.to_thread(self.store.attachment_path(self.rec).read_bytes)

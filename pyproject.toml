@@ -89,7 +89,7 @@ target-version = "py311"
 src = ["src", "tests", "redteam", "evals"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP", "S", "D", "ASYNC", "C4", "SIM", "RUF", "PT"]
+select = ["E", "F", "W", "I", "B", "UP", "S", "D", "ASYNC", "C4", "SIM", "RUF", "PT", "RET", "PIE", "C90"]
 ignore = [
   "D203", "D213", "D107", "D105", "D104",
   "S101",   # asserts are fine in tests; src avoids them by convention
@@ -105,6 +105,10 @@ ignore = [
 "evals/**" = ["S311"]
 "evals/dojo/**" = ["B006", "B008", "D101", "D102", "S105"]
 "web/**" = ["D"]
+
+[tool.ruff.lint.mccabe]
+# The CaMeL interpreter's node checker sits at 17; nothing should grow past it.
+max-complexity = 17
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
