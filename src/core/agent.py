@@ -322,7 +322,9 @@ class UltronAgent:
         self._turns: dict[str, Turn] = {}
         self._by_chat: dict[str, str] = {}
         self.learned_request_cap: int | None = None
-        """A per-request token cap read from a provider's own "too large" error."""
+        """Per-request caps read from a provider's own "too large" errors (see _learn_cap)."""
+        self.learned_input_cap: int | None = None
+        self.learned_reply_cap: int | None = None
         self.graph = self._build_graph(checkpointer or InMemorySaver())
 
     # ------------------------------------------------------------------------ public API --
@@ -1083,6 +1085,7 @@ class UltronAgent:
             tool_names=set(turn.tool_names),
             tool_numbers=list(turn.tool_numbers),
             files_written=list(turn.files_written),
+            files_named=list(turn.files_named),
             readable_files=set(turn.readable_files),
             known_files=known,
             retrieval_happened=turn.retrieval_happened,
@@ -1203,11 +1206,7 @@ class UltronAgent:
                 max_tokens=request.max_tokens,
                 detail=(exc.detail or "")[:200],
             )
-            limit = _LIMIT.search(exc.detail or "")
-            if limit:
-                # Learn the provider's real cap ("Limit 6000, Requested 6512") and fit to it.
-                learned = int(int(limit.group(1)) * 0.9)
-                self.learned_request_cap = min(self.learned_request_cap or learned, learned)
+            self._learn_cap(exc.detail or "")
             # Live run 2026-10-24: a read, a write and the history came to 9,016 tokens against
             # an 8,000 cap. Shrink once and ask again rather than fail the turn.
             self._compact(turn)
@@ -1230,6 +1229,24 @@ class UltronAgent:
             return {"route": "tools", "iteration": iteration + 1}
         return {"route": "answer", "iteration": iteration}
 
+    def _learn_cap(self, detail: str) -> None:
+        """Read the provider's own cap from its "too large" error and fit to it from now on.
+
+        Groq names three kinds: tokens per minute (prompt plus reply allowance), input tokens per
+        minute, and output tokens per minute ("OTPM: Limit 1000"), which caps the reply alone.
+        """
+        found = _LIMIT.search(detail)
+        if not found:
+            return
+        limit = int(int(found.group(1)) * 0.9)
+        kind = detail.lower()
+        if "output tokens" in kind or "otpm" in kind:
+            self.learned_reply_cap = min(self.learned_reply_cap or limit, limit)
+        elif "input tokens" in kind or "itpm" in kind:
+            self.learned_input_cap = min(self.learned_input_cap or limit, limit)
+        else:
+            self.learned_request_cap = min(self.learned_request_cap or limit, limit)
+
     def _fit_request(self, turn: Turn, request: ChatRequest) -> ChatRequest:
         """Keep prompt plus reply budget under ``max_request_tokens`` (0 means no cap).
 
@@ -1239,6 +1256,12 @@ class UltronAgent:
         """
         caps = [c for c in (self.settings.max_request_tokens, self.learned_request_cap) if c]
         cap = min(caps) if caps else 0
+        if self.learned_input_cap and request_tokens(request) > self.learned_input_cap:
+            log.info("request_trimmed_before_sending", turn_id=turn.turn_id)
+            self._compact(turn)
+            request = request.model_copy(update={"messages": self._messages(turn, [])})
+        if self.learned_reply_cap and request.max_tokens > self.learned_reply_cap:
+            request = request.model_copy(update={"max_tokens": self.learned_reply_cap})
         if not cap or request_tokens(request) + request.max_tokens <= cap:
             return request
         if cap - request_tokens(request) < MIN_REPLY_TOKENS:
@@ -1483,6 +1506,7 @@ class UltronAgent:
             {"id": call.id, "name": call.name, "ok": result.ok, "receipt": result.receipt_id}
         )
         turn.files_written += [f.path for f in result.files]
+        turn.files_named += [f.logical_name for f in result.files]
         turn.known_urls |= {
             s.removeprefix("web:") for s in result.provenance.sources if s.startswith("web:")
         }
@@ -1625,8 +1649,8 @@ class UltronAgent:
                 "support. If a tool was unavailable or denied, say you couldn't check rather than "
                 "answering from memory as if you had. Don't reuse sentences from your earlier "
                 "replies, say what a tool found instead of pasting its JSON, and end without "
-                "offering more help. The style examples are not this operator's history: never "
-                "refer to their subjects. Do not mention this note."
+                "offering more help. If you wrote a file, name it. The style examples are not "
+                "this operator's history: never refer to their subjects. Do not mention this note."
             )
             request = ChatRequest(
                 system=built.system,

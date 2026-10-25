@@ -296,3 +296,24 @@ async def test_the_cap_in_a_too_large_error_is_learned_for_later_requests(
         assert script.requests("main")[-1].max_tokens <= 5400
     finally:
         await rt.close()
+
+
+async def test_an_output_cap_limits_only_the_reply_budget(
+    settings: Settings, script: RoleScript
+) -> None:
+    """Live run 2026-10-25: qwen on Groq allows 1,000 output tokens a minute."""
+    from src.core.errors import RequestTooLarge
+
+    rt = await full_runtime(settings, script)
+    try:
+        assert rt.services.history is not None
+        script.push("guard", guard(task_type="CONVERSATION"))
+        detail = "on output tokens per minute (OTPM): Limit 1000, Requested 1042"
+        script.push(
+            "main", Reply(error=RequestTooLarge("too large", detail=detail)), Reply(text="Fine.")
+        )
+        await run(rt, await rt.services.history.create_chat("t"), "How are you?")
+        assert rt.agent.learned_reply_cap == 900 and rt.agent.learned_request_cap is None
+        assert script.requests("main")[-1].max_tokens == 900
+    finally:
+        await rt.close()

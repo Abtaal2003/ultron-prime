@@ -35,7 +35,9 @@ class ReaderInput(StrictModel):
     pages: list[int] | None = Field(
         None, max_length=40, description="Pages, slides, or sheets (1-based). Omit for all."
     )
-    sheet: str | None = Field(None, max_length=31, description="Sheet name for op=range.")
+    sheet: str | None = Field(
+        None, max_length=31, description="Sheet name for op=range; the first sheet if omitted."
+    )
     cell_range: str | None = Field(
         None,
         max_length=30,
@@ -50,8 +52,8 @@ class ReaderInput(StrictModel):
     def _check(self) -> ReaderInput:
         if self.op != "list" and not self.attachment_id:
             raise ValueError(f"{self.op} requires attachment_id")
-        if self.op == "range" and not (self.sheet and self.cell_range):
-            raise ValueError("range requires sheet and cell_range")
+        if self.op == "range" and not self.cell_range:
+            raise ValueError("range requires cell_range (sheet defaults to the first sheet)")
         if self.op == "find" and not self.query:
             raise ValueError("find requires query")
         if self.op == "page_image" and self.page is None:
@@ -198,7 +200,6 @@ class AttachmentReader(Tool):
     async def _range(inp: ReaderInput, r: _Read) -> tuple[ReaderOutput, bool]:
         if r.family != "xlsx":
             raise ValidationFailure("range works on spreadsheets only")
-        assert inp.sheet is not None
         assert inp.cell_range is not None
         data = await r.raw()
         try:

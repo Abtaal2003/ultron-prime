@@ -5,9 +5,9 @@ updated on 2026-10-20 after adding tracing and the spending cap.
 
 | Check | Result |
 |---|---|
-| `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT) | clean |
-| `mypy` strict on `src`, `redteam`, `evals` | clean, 120 files |
-| `pytest --cov` | 865 passed, 1 skipped (no `ping` binary), coverage 91.03 percent (gate 85) |
+| `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT,RET,PIE,C90) | clean |
+| `mypy` strict on `src`, `redteam`, `evals` | clean, 123 files |
+| `pytest --cov` | 895 passed, 1 skipped (no `ping` binary), coverage 91.87 percent (gate 85) |
 | Web: eslint (max warnings 0), `tsc --noEmit`, vitest | clean, 27 tests |
 | Web: `vite build` (PWA) | builds |
 | Playwright, Chromium desktop and phone profiles, axe accessibility | 32 passed, 4 skipped (phone-only specs on the desktop profile) |
@@ -277,3 +277,60 @@ backends from the test container. A style example's wording still leaks into rep
 ("the same contract you wrote for the original"). And the voice leans on one cluster of words
 ("lean", "bloat", "trim", "noise") across replies; that's for the next blind voice pass, not a
 change made without one.
+
+### Every tool, live (2026-10-25)
+
+`evals/live_tools.py` is a new, repeatable live check: 30 operator messages that between them use
+every tool (sandbox runs and errors, telemetry, each file operation, TCP and DNS diagnostics, web
+search, every forge action, text, PDF, Word, Excel and image uploads, a poisoned upload, memory,
+past-chat search and recall, a private chat, a refusal and small talk). Each turn goes through
+the real pipeline and is scored automatically: the turn finished, the expected tools ran and
+succeeded, the reply carries what the tools returned, there are no em dashes or quoted numbers,
+and the final text passes the output guard's checks a second time. Web search replays one real
+result recorded from PyPI, because the test container can't reach search providers.
+
+Final result: [30 of 30 cases](../data/evals/live-tools-2026-10-25.md) on `openai/gpt-oss-120b`,
+helpers on `openai/gpt-oss-20b`, images on Gemini. Three of the 30 (scribe-write, forge-convert,
+attach-xlsx) failed in the full run and passed when rerun after the fixes for them; the earlier
+runs that found the bugs are described below.
+
+What the runs found and fixed:
+
+* **Malformed tool calls failed the turn.** Groq checks tool arguments against the schema itself
+  and fails the whole request. The model now gets the reason back and calls again (twice at
+  most), and the forge's description shows one example per action.
+* **Failover to Gemini failed.** Gemini 3 rejects earlier function calls that carry no thought
+  signature; calls made by another provider now carry Gemini's documented placeholder.
+* **Requests over the provider's cap.** Groq counts the reply allowance against its per-request
+  cap, the size estimate was low, and some models cap input or output separately. The reply
+  budget now counts, the estimate is more conservative, the cap named in a provider's error is
+  learned, and an oversized request is shrunk on the primary model instead of spending the
+  fallback's small quota.
+* **Waiting out a daily cap.** A limit that lifts later than the longest retry wait now fails
+  over at once (Groq's "try again in 31m" is read from the message), and the streaming path
+  logs its retries.
+* **Uploads read as web pages.** The reader labelled uploads "web", so a PDF got the web
+  extraction schema with character offsets and failed; uploads now get the upload schema.
+* **Guard output failing validation.** Strict schemas make optional fields nullable and the model
+  filled them with `null`, so the guard fell back on most turns and once refused "open that chat
+  and tell me what was on the list". Nulls now mean "not given".
+* **Smaller tool fixes.** A file the forge made can be named in a later convert; a spreadsheet
+  range defaults to the first sheet; file listings give a readable time instead of an epoch;
+  DNS and reachability requests are offered the diagnostic tool; telemetry splits into small
+  functions.
+* **Replies.** One rewrite (never a fail-safe) now goes to replies that paste receipts (storage
+  paths, hashes, tool fields), offer to open or cite other chats unprompted, speak of a style
+  example's subject as history, or write a file without naming it. Saying a memory was kept
+  when the gatekeeper declined it is sent back as a factual error. Passive recall no longer
+  injects a past chat that only repeats the current request.
+* **Memory judge too strict.** It declined "my staging server is called kestrel" as trivia. Facts
+  about the operator's own setup now count; the operator still approves every proposal.
+* **Honest failure lines.** A failed or empty turn said "The error is reported exactly as it
+  happened" when nothing was reported. Failures now say what kind of failure it was (provider,
+  timeout, or an internal error by class name).
+
+Still open: free-tier quotas decide how much can run in a day (two Groq accounts and the Gemini
+models were exhausted across seven runs). `qwen/qwen3.8-27b` on Groq allows 1,000 output tokens a
+minute, too few for a main model. The model still chooses the sandbox over the forge for some
+charts, and sometimes reaches for the sandbox on an uploaded spreadsheet, which the taint rule
+then holds.

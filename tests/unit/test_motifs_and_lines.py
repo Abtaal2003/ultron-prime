@@ -234,6 +234,8 @@ def test_a_pasted_tool_receipt_is_sent_back_unless_asked_for(settings) -> None: 
     assert "raw_receipt" not in [
         i.name for i in guard.check("Saved notes/todo.md, version 1.", sctx).issues
     ]
+    inline = "Converted. It sits at `versions/file_47afd5028c764422/v3.csv`."
+    assert "raw_receipt" in [i.name for i in guard.check(inline, sctx).issues]
     own_code = '```python\nconfig = {"name": "ledger", "debug": True, "port": 8000}\n```'
     assert "raw_receipt" not in [i.name for i in guard.check(own_code, ctx).issues]
 
@@ -247,6 +249,8 @@ def test_an_offer_of_more_help_at_the_end_is_sent_back(settings) -> None:  # typ
         "It passes. I can also write the tests if you'd like.",
         "The chart is ready. I can pull that chat up if it helps.",
         "I can pull that transcript up if your archives need prodding. The chart is ready.",
+        "Bay 17. You asked the same in *Action Items* on 2026-10-25; we can pull that chat up.",
+        "Déjà vu on 2026-10-25 in Summarise Notes, which I can pull up. Rename the repo.",
     ]
     for reply in offers:
         assert "closing_offer" in [i.name for i in guard.check(reply, ctx).issues], reply
@@ -257,6 +261,9 @@ def test_an_offer_of_more_help_at_the_end_is_sent_back(settings) -> None:  # typ
     ]
     for reply in fine:
         assert "closing_offer" not in [i.name for i in guard.check(reply, ctx).issues], reply
+    asked = OutputContext(operator_texts=["Find the earlier chat where we wrote a todo list."])
+    found = "Found it: the 2026-10-25 chat 'Todo List'. I can pull it up in full."
+    assert "closing_offer" not in [i.name for i in guard.check(found, asked).issues]
 
 
 def test_a_style_example_subject_spoken_of_as_history_is_sent_back(settings) -> None:  # type: ignore[no-untyped-def]
@@ -282,3 +289,12 @@ def test_claiming_a_declined_memory_was_kept_is_sent_back(settings) -> None:  # 
     assert "unbacked_memory_claim" not in [i.name for i in guard.check(reply, queued).issues]
     honest = "The gatekeeper turned that one down, so it isn't in the archive. Kestrel, though."
     assert "unbacked_memory_claim" not in [i.name for i in guard.check(honest, declined).issues]
+
+
+def test_a_file_written_but_never_named_is_sent_back(settings) -> None:  # type: ignore[no-untyped-def]
+    guard = OutputGuard(settings, SecretScanner())
+    ctx = OutputContext(files_named=["notes/todo.md"])
+    quip = "Decide which matters more, the milk or the parser."
+    assert "unreported_write" in [i.name for i in guard.check(quip, ctx).issues]
+    named = "Saved to notes/todo.md: milk, the parser, your mum."
+    assert "unreported_write" not in [i.name for i in guard.check(named, ctx).issues]

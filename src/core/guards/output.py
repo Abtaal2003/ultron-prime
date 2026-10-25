@@ -108,8 +108,14 @@ _CLOSING_OFFER = re.compile(
 _PROSE_FIELD = re.compile(r"\b([a-z][a-z0-9]*(?:_[a-z0-9]+)+|size|version)\s*[:=]\s*\S")
 _RECEIPT_TOKEN = re.compile(r"\b[0-9a-f]{32,}\b|\bversions/file_[0-9a-f]+", re.I)
 _CHAT_OFFER = re.compile(
-    r"\bi can (?:also )?(?:pull|open|bring|dig)\b[^.?!\n]{0,60}\b(?:chat|transcript|conversation)",
+    r"\b(?:i|we) can (?:also )?(?:pull|open|bring|dig)\b[^.?!\n]{0,60}"
+    r"\b(?:chat|transcript|conversation|up)\b",
     re.I,
+)
+_ISO_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+_CHAT_WORDS = re.compile(r"\b(?:chat|asked|transcript|conversation|déjà|again)\b", re.I)
+_ASKED_HISTORY = re.compile(
+    r"\b(?:chat|conversation|earlier|before|last time|history|remember|recall|told you)\b", re.I
 )
 _MEMORY_CLAIM = re.compile(
     r"\b(?:i'?ll (?:keep|remember|hold on to)|i(?:'ve| have) (?:kept|noted|filed|stored)|noted|"
@@ -172,6 +178,7 @@ class OutputContext:
     example_subjects: list[str] = field(default_factory=list)
     tool_arg_keys: set[str] = field(default_factory=set)
     memory_statuses: list[str] = field(default_factory=list)
+    files_named: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -204,7 +211,9 @@ class FinalReply:
     callback_used: str | None = None
 
 
-STYLE_ISSUES = frozenset({"self_repeat", "raw_receipt", "closing_offer", "example_bleed"})
+STYLE_ISSUES = frozenset(
+    {"self_repeat", "raw_receipt", "closing_offer", "example_bleed", "unreported_write"}
+)
 """Worth one rewrite, never worth replacing the reply with a fail-safe line."""
 
 
@@ -364,6 +373,19 @@ class OutputGuard:
                 issues.append(Issue("ungrounded_host_metric", "regenerate", "no telemetry receipt"))
 
     @staticmethod
+    def _check_unreported_write(reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
+        """A file was written this turn and the reply never says which.
+
+        A live run (2026-10-25) saved notes/todo.md and answered with a quip and the list,
+        so the operator couldn't tell it had been saved or where.
+        """
+        if not ctx.files_named:
+            return
+        low = reply.lower()
+        if not any(name.lower().rsplit("/", 1)[-1] in low for name in ctx.files_named):
+            issues.append(Issue("unreported_write", "regenerate", ", ".join(ctx.files_named)[:80]))
+
+    @staticmethod
     def _check_memory_claim(reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
         """Saying a fact was kept when the gatekeeper turned the proposal down.
 
@@ -403,7 +425,7 @@ class OutputGuard:
                 return
 
     @staticmethod
-    def _check_closing_offer(reply: str, issues: list[Issue]) -> None:
+    def _check_closing_offer(reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
         """An offer of more help tacked on at the end, which the operational rules forbid.
 
         A live run (2026-10-24) closed with "Let me know if you want me to pull up the ... chat."
@@ -413,10 +435,16 @@ class OutputGuard:
         if prose and _CLOSING_OFFER.match(prose[-1].strip()):
             issues.append(Issue("closing_offer", "regenerate", prose[-1].strip()[:80]))
             return
-        # Anywhere in the reply: offering to dig out another chat (2026-10-25, twice).
-        found = _CHAT_OFFER.search(_strip_code(reply))
-        if found:
-            issues.append(Issue("closing_offer", "regenerate", found.group(0)[:80]))
+        # Anywhere in the reply: bringing up or offering to open another chat the operator
+        # didn't ask about ("You asked this on 2026-10-25 in ...; I can pull that chat up").
+        if any(_ASKED_HISTORY.search(t) for t in ctx.operator_texts[:1]):
+            return
+        for sentence in _CLAUSE_SPLIT.split(_strip_code(reply)):
+            if _CHAT_OFFER.search(sentence) or (
+                _ISO_DATE.search(sentence) and _CHAT_WORDS.search(sentence)
+            ):
+                issues.append(Issue("closing_offer", "regenerate", sentence.strip()[:80]))
+                return
 
     @staticmethod
     def _check_raw_receipt(reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
@@ -429,7 +457,7 @@ class OutputGuard:
         for raw in ctx.tool_texts:
             tool_keys |= set(_JSON_KEY.findall(raw))
         prose_only = _strip_code(reply)
-        if _RECEIPT_TOKEN.search(prose_only):
+        if _RECEIPT_TOKEN.search(_FENCE.sub(" ", reply)):  # inline `code` hid the path once
             issues.append(Issue("raw_receipt", "regenerate", "a hash or storage path in the reply"))
             return
         for block in _FENCE.findall(reply):
@@ -574,9 +602,10 @@ class OutputGuard:
         self._check_sourced_claims(text, ctx, issues)
         self._check_self_repeat(text, ctx, issues)
         self._check_raw_receipt(text, ctx, issues)
-        self._check_closing_offer(text, issues)
+        self._check_closing_offer(text, ctx, issues)
         self._check_example_bleed(text, ctx, issues)
         self._check_memory_claim(text, ctx, issues)
+        self._check_unreported_write(text, ctx, issues)
         for problem in motifs.overuse(text, ctx.recent_replies):
             issues.append(Issue("motif_overuse", "note", problem))
         return OutputCheck(text=text, issues=issues, callback_used=callback)

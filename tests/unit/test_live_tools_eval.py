@@ -51,3 +51,11 @@ def test_uploads_are_read_as_uploads_not_as_web_pages() -> None:
 
     assert AttachmentReader.quarantine_source == "uploads_external"
     assert default_schema(AttachmentReader.quarantine_source, ".pdf") == "Summary"
+
+
+def test_a_range_read_defaults_to_the_first_sheet() -> None:
+    from evals.live_tools import _xlsx
+    from src.files.parsers.xlsx import read_range
+
+    data = _xlsx([["item", "eur"], ["rent", 850]])
+    assert read_range(data, None, "A1:B2") == [["item", "eur"], ["rent", "850"]]

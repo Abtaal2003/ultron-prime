@@ -227,6 +227,11 @@ calls, web searches and network diagnostics leave it.
 * **Development:** `just dev` runs the API with reload and the Vite dev server together.
 * **Phone access:** set `ACCESS_MODE=tailnet` (or `lan` with TLS) and add the host to
   `ALLOWED_HOSTS` and `ALLOWED_ORIGINS`. Never expose it to the public internet.
+* **Free tiers:** on Groq's free tier set `MAX_REQUEST_TOKENS=8000` (its per-request cap, reply
+  allowance included) and `LLM_MAX_WAIT_S=60` (its limits count tokens per rolling minute).
+* **Live tool check:** `uv run python -m evals.live_tools` sends 30 messages that use every tool
+  through the real pipeline and scores each one; keys come from the environment, and results
+  go to `data/evals/live-tools-<date>.md`.
 * **Repeat detection:** after installing a real embedding model, run
   `uv run python -m evals.repeat --write` once to calibrate its thresholds.
 * **Spending cap:** set `DAILY_BUDGET_USD` and your providers' prices in
@@ -264,7 +269,7 @@ Full signatures and limits: [docs/tool-reference.md](docs/tool-reference.md).
 | Frontend | React 18, TypeScript (strict), Vite, Tailwind, TanStack Query, installable PWA |
 | Quality | ruff, mypy strict, pytest (91% coverage), Vitest, Playwright with axe, GitHub Actions |
 | Operations | Structured logs, optional OpenTelemetry tracing, an optional daily spending cap |
-| Evals | AgentDojo, an offline and nightly red team, hallucination, persona and file-injection suites |
+| Evals | AgentDojo, an offline and nightly red team, hallucination, persona and file-injection suites, and a live check of every tool |
 
 ## Project status
 

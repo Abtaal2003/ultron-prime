@@ -662,3 +662,20 @@ def test_the_only_memory_insert_is_reached_from_the_consent_path() -> None:
             callers.append(path.name)
     assert inserts == ["vault.py"]
     assert callers == ["manager.py"]
+
+
+def test_a_recall_hit_that_is_the_same_request_is_dropped() -> None:
+    from src.core.memory.history import echoes
+
+    assert echoes(
+        "Summarise the notes I just uploaded.",
+        "user: Summarise the notes I just uploaded.\n\nassistant: Week 43: a 300 EUR food budget.",
+    )
+    assert not echoes(
+        "postgres replication slots",
+        "user: configure postgres replication slots\n\nassistant: use pg_create_logical_slot",
+    )
+    assert not echoes(
+        "What's my staging server called?", "Please remember that my staging server is kestrel"
+    )
+    assert not echoes("Hi", "Hi there")

@@ -36,6 +36,21 @@ def estimate_tokens(text: str) -> int:
     return max(1, (len(text) + 3) // 4)
 
 
+def echoes(query: str, snippet: str) -> bool:
+    """The snippet is mostly the same request asked in another chat.
+
+    Such a hit tells the model nothing new, and a live run (2026-10-25) turned every one into
+    "You asked this on <date> in <chat>; I can pull it up". Only the words are compared.
+    """
+    words = set(re.findall(r"[a-z0-9]{3,}", query.lower()))
+    if len(words) < 3:
+        return False
+    asked = re.search(r"user:\s*(.*?)(?:\n\nassistant:|$)", snippet, re.S | re.I)
+    earlier = asked.group(1) if asked else snippet  # exchanges are indexed as "user: ..."
+    found = set(re.findall(r"[a-z0-9]{3,}", earlier.lower()))
+    return len(words & found) >= 0.8 * len(words | found)  # the same words both ways
+
+
 def fts_query(text: str) -> str:
     """Turn free text into a safe FTS5 query: quoted terms joined by OR (no operators leak in)."""
     terms = list(dict.fromkeys(t.lower() for t in _TOKEN.findall(text)))[:24]
@@ -446,13 +461,14 @@ class HistoryStore:
         k = self.settings.history_top_k if k is None else k
         if k <= 0 or not self.settings.passive_cross_chat_recall:
             return []
-        return await self.semantic_search(
+        hits = await self.semantic_search(
             query,
             limit=k,
             exclude_chat_id=current_chat_id,
             min_score=threshold,
             diversify=True,
         )
+        return [h for h in hits if not echoes(query, h.snippet)]
 
     async def recall_chat(
         self,

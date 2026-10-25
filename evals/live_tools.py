@@ -559,7 +559,8 @@ def report(results: list[Result], stamp: str) -> str:
 
 async def main(prefixes: list[str]) -> int:
     """Run the suite (or the cases matching ``prefixes``) and write the results."""
-    shutil.rmtree(HOME, ignore_errors=True)
+    if os.environ.get("LIVE_KEEP_HOME") != "1":  # 1 resumes a run that hit a daily cap
+        shutil.rmtree(HOME, ignore_errors=True)
     stamp = datetime.now(UTC).strftime("%Y-%m-%d")
     OUT.mkdir(parents=True, exist_ok=True)
     chosen = [c for c in cases() if not prefixes or any(c.id.startswith(p) for p in prefixes)]
@@ -585,7 +586,14 @@ async def main(prefixes: list[str]) -> int:
             print(f"[{case.id}] {mark} ({res.seconds}s)", flush=True)
     finally:
         await rt.close()
-    (OUT / f"live-tools-{stamp}.md").write_text(report(results, stamp))
+    # A resumed or repeated case replaces its earlier row; the suite's order is kept.
+    latest: dict[str, Result] = {}
+    for line in log_path.read_text().splitlines():
+        row = {k: v for k, v in json.loads(line).items() if k != "passed"}
+        latest[row["case"]] = Result(**row)
+    order = {c.id: i for i, c in enumerate(cases())}
+    ranked = sorted(latest.values(), key=lambda r: order.get(r.case, len(order)))
+    (OUT / f"live-tools-{stamp}.md").write_text(report(ranked, stamp))
     return 0 if all(r.passed for r in results) else 1
 
 

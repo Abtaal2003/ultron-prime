@@ -67,10 +67,17 @@ def parse_xlsx(data: bytes) -> ParsedDoc:
     return doc
 
 
-def read_range(data: bytes, sheet: str, cell_range: str, max_cells: int = 4000) -> list[list[str]]:
-    """Return the values in an A1 range as strings (formulas stay as text)."""
+def read_range(
+    data: bytes, sheet: str | None, cell_range: str, max_cells: int = 4000
+) -> list[list[str]]:
+    """Return the values in an A1 range as strings (formulas stay as text).
+
+    With no sheet named, the first sheet is used: a live run (2026-10-25) spent three calls
+    guessing "Sheet1" for a one-sheet workbook whose sheet was called "Budget".
+    """
     wb = openpyxl.load_workbook(io.BytesIO(data), data_only=False)
     try:
+        sheet = sheet or wb.sheetnames[0]
         if sheet not in wb.sheetnames:
             raise KeyError(f"no sheet named '{sheet}'; sheets: {wb.sheetnames}")
         ws = wb[sheet]
