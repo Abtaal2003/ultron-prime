@@ -103,6 +103,7 @@ class Turn:
     schema_retries: int = 0
     memory_statuses: list[str] = field(default_factory=list)
     files_named: list[str] = field(default_factory=list)
+    example_turns: list[Message] = field(default_factory=list)
     private: bool = False
     recent_replies: list[str] = field(default_factory=list)
     tool_texts: list[str] = field(default_factory=list)

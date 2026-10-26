@@ -390,7 +390,7 @@ def settings() -> Settings:
         llm_max_wait_s=60.0,
         llm_decide_timeout_s=120.0,  # room for minute-long rate-limit waits; latency isn't scored
         stm_token_budget=2500,
-        max_request_tokens=7000,
+        max_request_tokens=8000,
         daily_budget_usd=2.0,
         model_prices_usd_per_mtok={"groq:*": (1.0, 4.0), "gemini:*": (0.5, 3.0)},
         port=8794,

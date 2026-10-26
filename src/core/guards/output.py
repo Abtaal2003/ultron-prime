@@ -122,6 +122,11 @@ _MEMORY_CLAIM = re.compile(
     r"filed|stored|archived|kept it|committed to memory|on record)\b",
     re.I,
 )
+_EXISTING_HEADER = re.compile(
+    r"```[\w+-]*\n\s*(?:#|//)([^\n]*\b(?:already|existing|current|present|as saved|on disk)\b"
+    r"[^\n]*)",
+    re.I,
+)
 _ASKED_RAW = re.compile(r"\b(json|raw|receipt|verbatim|full output)\b", re.I)
 
 
@@ -215,6 +220,33 @@ STYLE_ISSUES = frozenset(
     {"self_repeat", "raw_receipt", "closing_offer", "example_bleed", "unreported_write"}
 )
 """Worth one rewrite, never worth replacing the reply with a fail-safe line."""
+
+
+def _offers_a_chat(sentence: str) -> bool:
+    return bool(
+        _CHAT_OFFER.search(sentence)
+        or (_ISO_DATE.search(sentence) and _CHAT_WORDS.search(sentence))
+    )
+
+
+def drop_chat_offers(text: str, ctx: OutputContext) -> str:
+    """Remove prose sentences that offer more help or cite another chat unprompted."""
+    if any(_ASKED_HISTORY.search(t) for t in ctx.operator_texts[:1]):
+        return text
+    kept: list[str] = []
+    for block in re.split(r"(```.*?```)", text, flags=re.S):
+        if block.startswith("```"):
+            kept.append(block)
+            continue
+        pieces = re.split(r"(?<=[.!?])(\s+)", block)
+        out = [
+            p
+            for p in pieces
+            if p.isspace() or not (_offers_a_chat(p) or _CLOSING_OFFER.match(p.strip()))
+        ]
+        kept.append(re.sub(r"(?<=\S)[ \t]{2,}(?=\S)", " ", "".join(out)))
+    cleaned = re.sub(r"\n{3,}", "\n\n", "".join(kept)).strip()
+    return cleaned or text
 
 
 def _only_style(check: OutputCheck) -> bool:
@@ -440,9 +472,7 @@ class OutputGuard:
         if any(_ASKED_HISTORY.search(t) for t in ctx.operator_texts[:1]):
             return
         for sentence in _CLAUSE_SPLIT.split(_strip_code(reply)):
-            if _CHAT_OFFER.search(sentence) or (
-                _ISO_DATE.search(sentence) and _CHAT_WORDS.search(sentence)
-            ):
+            if _offers_a_chat(sentence):
                 issues.append(Issue("closing_offer", "regenerate", sentence.strip()[:80]))
                 return
 
@@ -537,6 +567,14 @@ class OutputGuard:
     def _check_file_content(self, reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
         """A claim about what a file says needs evidence that the file was read (spec 5.2)."""
         grounded = ctx.readable_files | {base_name(w) for w in ctx.files_written}
+        grounded |= {base_name(n) for n in ctx.files_named}
+        # A code block headed "# ledger/parse.py (already present)" is a claim about the file
+        # too: a live run (2026-10-26) showed an invented parse.py that way without reading it.
+        for header in _EXISTING_HEADER.findall(reply):
+            for name in file_names(header):
+                if name not in grounded:
+                    issues.append(Issue("unverified_file_content", "regenerate", name[:100]))
+                    return
         operator_named: set[str] = set()
         for text in ctx.operator_texts:
             operator_named |= file_names(text)
@@ -672,7 +710,7 @@ class OutputGuard:
         if regenerate is None:
             if _only_style(first):
                 return FinalReply(
-                    first.text,
+                    drop_chat_offers(first.text, ctx),
                     "pass",
                     [i.name for i in first.issues],
                     callback_used=first.callback_used,
@@ -689,8 +727,12 @@ class OutputGuard:
             return FinalReply(
                 FAIL_SAFE_UNVERIFIED, "blocked", names + [i.name for i in second.issues], True
             )
+        text = second.text
+        if any(i.name == "closing_offer" for i in second.issues):
+            # The rewrite kept it (2026-10-26, twice): drop the sentence instead.
+            text = drop_chat_offers(text, ctx)
         return FinalReply(
-            second.text, "regenerated", names, regenerated=True, callback_used=second.callback_used
+            text, "regenerated", names, regenerated=True, callback_used=second.callback_used
         )
 
     async def _full_check(

@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import re
 import time
 from collections.abc import AsyncIterator
@@ -214,24 +215,26 @@ def argument_keys(messages: list[Message]) -> set[str]:
 
 
 def request_tokens(request: ChatRequest) -> int:
-    """A conservative size estimate for one request: prompt, tool schemas and every message.
+    """A size estimate for one request: prompt, tool schemas and every message.
 
-    Four characters a token undercounted gpt-oss on this prompt (Markdown, JSON schemas), and
-    Groq still refused requests the estimate had passed (live run 2026-10-25).
+    Measured on Groq's gpt-oss tokenizer (2026-10-26): this persona's prose runs about 4.1
+    characters a token and tool JSON about 3.4. The estimate uses 3.8 and 3.2, a little high,
+    so it errs towards trimming. (One flat 3.2 over-counted prose by a third and trimmed
+    nearly every request.)
     """
-    chars = len(request.system) + len(request.system_dynamic)
-    chars += sum(
+    prose = len(request.system) + len(request.system_dynamic)
+    structured = sum(
         len(json.dumps(t.parameters)) + len(t.name) + len(t.description) for t in request.tools
     )
     for msg in request.messages:
         for part in msg.parts:
             if isinstance(part, ToolResultPart):
-                chars += len(part.content)
+                structured += len(part.content)
             elif isinstance(part, ToolUsePart):
-                chars += len(json.dumps(part.arguments)) + len(part.name)
+                structured += len(json.dumps(part.arguments)) + len(part.name)
             else:
-                chars += len(getattr(part, "text", "") or "")
-    return (chars * 10 + 31) // 32  # about 3.2 characters a token: chars/4 undercounted on Groq
+                prose += len(getattr(part, "text", "") or "")
+    return math.ceil(prose / 3.8 + structured / 3.2)
 
 
 COMPACT_WINDOW_MESSAGES = 2
@@ -1076,9 +1079,7 @@ class UltronAgent:
             charter_text=self.pack.charter,
             known_urls=set(turn.known_urls),
             retrieved_texts=list(turn.retrieved_texts),
-            example_subjects=[]
-            if turn.compacted
-            else [a.example_user for a in turn.prompt_inputs.anchors],
+            example_subjects=[a.example_user for a in turn.prompt_inputs.anchors],
             tool_arg_keys=argument_keys(turn.loop_messages),
             memory_statuses=list(turn.memory_statuses),
             operator_texts=operator,
@@ -1113,12 +1114,13 @@ class UltronAgent:
         notes: list[str] = []
         if self._must_run_first(turn, iteration, tools):
             # A live run (2026-10-24) answered "write it and run a quick test" with the code and
-            # no run. The first call may only use the sandbox; the rest of the turn is normal.
-            tools = [t for t in tools if t.name == SANDBOX_TOOL]
+            # no run, so the first call must use a tool. It used to be the sandbox only, but
+            # then "write the test file and run it" ran before reading or saving anything and
+            # showed an invented parse.py (2026-10-26); every offered tool stays available.
             choice = "required"
             notes.append(
-                "The operator asked you to run code. Run it in the sandbox now, then answer "
-                "with the code and the real output."
+                "The operator asked you to run code. Read or write any files the request needs, "
+                "run the code in the sandbox, then answer with the code and the real output."
             )
         if turn.private:
             # Live run 2026-10-24: in a private chat the model wrote out a memory proposal as
@@ -1146,12 +1148,15 @@ class UltronAgent:
             or turn.gate.tool_time_s >= self.settings.max_tool_time_s
         )
         built = self.prompts.build(turn.prompt_inputs)
+        # Kept through trimming: a few hundred tokens that carry the voice. A live run
+        # (2026-10-26) trimmed on most calls, dropped them, and the replies went flat.
+        turn.example_turns = built.example_turns
         tools, tool_choice, notes = self._turn_tools(turn, iteration, capped)
         system_dynamic = built.system_dynamic + "".join(f"\n\n{n}" for n in notes)
         request = ChatRequest(
             system=built.system,
             system_dynamic=system_dynamic,
-            messages=self._messages(turn, [] if turn.compacted else built.example_turns),
+            messages=self._messages(turn, built.example_turns),
             tools=tools,
             tool_choice=tool_choice,
             sampling=SamplingPolicy(
@@ -1259,7 +1264,9 @@ class UltronAgent:
         if self.learned_input_cap and request_tokens(request) > self.learned_input_cap:
             log.info("request_trimmed_before_sending", turn_id=turn.turn_id)
             self._compact(turn)
-            request = request.model_copy(update={"messages": self._messages(turn, [])})
+            request = request.model_copy(
+                update={"messages": self._messages(turn, turn.example_turns)}
+            )
         if self.learned_reply_cap and request.max_tokens > self.learned_reply_cap:
             request = request.model_copy(update={"max_tokens": self.learned_reply_cap})
         if not cap or request_tokens(request) + request.max_tokens <= cap:
@@ -1267,7 +1274,9 @@ class UltronAgent:
         if cap - request_tokens(request) < MIN_REPLY_TOKENS:
             log.info("request_trimmed_before_sending", turn_id=turn.turn_id)
             self._compact(turn)
-            request = request.model_copy(update={"messages": self._messages(turn, [])})
+            request = request.model_copy(
+                update={"messages": self._messages(turn, turn.example_turns)}
+            )
         room = cap - request_tokens(request)
         budget = max(MIN_REPLY_TOKENS, min(room, request.max_tokens))
         update: dict[str, Any] = {"max_tokens": budget}

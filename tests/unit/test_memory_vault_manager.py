@@ -679,3 +679,9 @@ def test_a_recall_hit_that_is_the_same_request_is_dropped() -> None:
         "What's my staging server called?", "Please remember that my staging server is kestrel"
     )
     assert not echoes("Hi", "Hi there")
+
+
+def test_called_and_named_are_the_same_fact() -> None:
+    assert covered_by(
+        "The operator's staging server is named kestrel.", ["My staging server is called kestrel."]
+    )

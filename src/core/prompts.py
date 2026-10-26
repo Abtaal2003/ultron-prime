@@ -122,10 +122,9 @@ class PromptBuilder:
         if summary:
             lines.append(f"Earlier in this conversation (summary): {_clean_line(summary, 1500)}")
         for h in history:
-            lines.append(
-                f"[chat {h.chat_id} '{_clean_line(h.title, MAX_TITLE)}' {h.created_at[:10]}] "
-                f"{_clean_line(h.snippet, 400)}"
-            )
+            # No title or date: those became "you asked this on <date> in <title>" in replies
+            # (live runs, 2026-10-25 and 26). search_past_chats gives both when he needs them.
+            lines.append(f"[another chat] {_clean_line(h.snippet, 400)}")
         if not lines:
             return ""
         return wrap_untrusted("\n".join(lines), self.boundary, "history")

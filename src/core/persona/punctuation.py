@@ -25,6 +25,8 @@ _HYPHENS = str.maketrans({"\u2011": "-", "\u2010": "-", "\u202f": " ", "\u00a0":
 # A whole line that is one italic span starting in lowercase is a stage direction
 # ("*the forge cools*", "_sighs_"). Inline emphasis and capitalised italic notes are kept.
 _STAGE = re.compile(r"(?m)^[ \t]*([*_])(?=[a-z])([^*_`\n\d]{1,200}?)\1[ \t]*(?:\n|$)")
+_PAREN_STAGE = re.compile(r"(?m)^[ \t]*\((?=[A-Za-z])[^()\n\d`]{3,80}\)[ \t]*(?:\n|$)")
+"""A whole line in parentheses, "(Attic rests, the house hums.)": stage business (2026-10-26)."""
 _BLANK_RUNS = re.compile(r"\n{3,}")
 # Register names are private stage direction; a line must never open with one as a label.
 _REGISTER_LABEL = re.compile(
@@ -49,7 +51,7 @@ speaking. A bare number in quotation marks is unquoted; code is never touched.""
 def _tidy_prose(text: str) -> str:
     text = _QUOTED_NUMBER.sub(r"\1", text)
     text = text.translate(_HYPHENS)
-    text = _BLANK_RUNS.sub("\n\n", _STAGE.sub("", text))
+    text = _BLANK_RUNS.sub("\n\n", _PAREN_STAGE.sub("", _STAGE.sub("", text)))
     text = _REGISTER_LABEL.sub(r"\1", text)
     text = _DASH_AFTER_SENTENCE.sub(lambda m: f"{m.group(1)} {m.group(2).upper()}", text)
     text = _EM_DASH.sub(", ", text)

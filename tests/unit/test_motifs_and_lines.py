@@ -298,3 +298,39 @@ def test_a_file_written_but_never_named_is_sent_back(settings) -> None:  # type:
     assert "unreported_write" in [i.name for i in guard.check(quip, ctx).issues]
     named = "Saved to notes/todo.md: milk, the parser, your mum."
     assert "unreported_write" not in [i.name for i in guard.check(named, ctx).issues]
+
+
+def test_a_code_block_presented_as_an_existing_file_needs_a_read(settings) -> None:  # type: ignore[no-untyped-def]
+    guard = OutputGuard(settings, SecretScanner())
+    reply = "Here it is.\n\n```python\n# ledger/parse.py (already present)\ndef parse(x):\n    return x\n```"
+    unread = OutputContext(known_files={"parse.py"})
+    assert "unverified_file_content" in [i.name for i in guard.check(reply, unread).issues]
+    read = OutputContext(known_files={"parse.py"}, readable_files={"parse.py"})
+    assert "unverified_file_content" not in [i.name for i in guard.check(reply, read).issues]
+    new = "```python\n# ledger/test_parse.py\ndef test_x():\n    assert True\n```"
+    assert "unverified_file_content" not in [i.name for i in guard.check(new, unread).issues]
+
+
+def test_a_line_of_parenthesised_stage_business_is_dropped() -> None:
+    from src.core.persona.punctuation import tidy
+
+    text = "FastAPI is at 0.162.0.\n\n(Attic rests, the house hums.)\n"
+    assert "Attic rests" not in tidy(text)
+    kept = "Use the new flag (it ships in 0.162) when you upgrade."
+    assert tidy(kept) == kept
+
+
+def test_an_offer_the_rewrite_kept_is_cut_out(settings) -> None:  # type: ignore[no-untyped-def]
+    import asyncio
+
+    guard = OutputGuard(settings, SecretScanner())
+    ctx = OutputContext(operator_texts=["What's my staging server called?"])
+    reply = (
+        "Kestrel. You asked the same thing twice on 2026-10-26 in the chat 'St'. Caching is a flaw."
+    )
+
+    async def same(_issues: object) -> str:
+        return reply
+
+    final = asyncio.run(guard.finalise(reply, ctx, same))
+    assert final.text == "Kestrel. Caching is a flaw."

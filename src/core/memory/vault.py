@@ -96,7 +96,10 @@ _STOPWORD_TEXT = (
     "said says think"
 )
 _QUERY_STOPWORDS = frozenset(_STOPWORD_TEXT.split())
-_SUBJECT_WORDS = frozenset({"operator", "operators", "user", "users", "creator"})
+_SUBJECT_WORDS = frozenset(
+    {"operator", "operators", "user", "users", "creator", "called", "named", "name", "always"}
+)
+"""Subjects and filler that two wordings of one fact differ on ("is called" / "is named")."""
 
 
 def content_stems(text: str) -> set[str]:

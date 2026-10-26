@@ -7,7 +7,7 @@ updated on 2026-10-20 after adding tracing and the spending cap.
 |---|---|
 | `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT,RET,PIE,C90) | clean |
 | `mypy` strict on `src`, `redteam`, `evals` | clean, 123 files |
-| `pytest --cov` | 895 passed, 1 skipped (no `ping` binary), coverage 91.87 percent (gate 85) |
+| `pytest --cov` | 899 passed, 1 skipped (no `ping` binary), coverage 91.86 percent (gate 85) |
 | Web: eslint (max warnings 0), `tsc --noEmit`, vitest | clean, 27 tests |
 | Web: `vite build` (PWA) | builds |
 | Playwright, Chromium desktop and phone profiles, axe accessibility | 32 passed, 4 skipped (phone-only specs on the desktop profile) |
@@ -334,3 +334,50 @@ models were exhausted across seven runs). `qwen/qwen3.8-27b` on Groq allows 1,00
 minute, too few for a main model. The model still chooses the sandbox over the forge for some
 charts, and sometimes reaches for the sandbox on an uploaded spreadsheet, which the taint rule
 then holds.
+
+### Full retest (2026-10-26)
+
+A fresh day's quota, so everything ran again from scratch: the offline suite, all 30 live tool
+cases twice on `openai/gpt-oss-120b`, and the 16-turn session with its follow-up chats.
+
+| Run | Result |
+|:--|:--|
+| Offline suite | 899 passed, 1 skipped, coverage 91.86 percent |
+| [First live run](../data/evals/live-tools-2026-10-26-first.md) | 28 of 30 |
+| [Second live run](../data/evals/live-tools-2026-10-26.md), after the first round of fixes | 27 of 30 |
+| [Recheck](../data/evals/live-tools-2026-10-26-recheck.md) of the five affected cases, after the second round | 5 of 5, on `openai/gpt-oss-20b` because both accounts' 120b quota was spent |
+| Long session | every turn finished except one, when Groq and both Gemini fallbacks were out of quota at once |
+
+What held up in the session: recall across chats (the service, the Friday rule, what the parser
+returned, found through past-chat search), the "Sunny" refusal, the poisoned notes, the honest
+"can't delete", the sandbox run on request, and no leak of the private codename.
+
+Found and fixed:
+
+* **Trimming removed the voice.** The size estimate treated the whole prompt as JSON and ran a
+  third high, so nearly every request was trimmed, and trimming dropped the style examples
+  first. Replies went flat. The estimate is now calibrated on Groq's tokenizer (prose about
+  4.1 characters a token, JSON 3.4), and trimming keeps the examples: they are a few hundred
+  tokens and carry the voice.
+* **The forge's schema was half the budget.** Its full JSON schema was about 4,000 tokens; the
+  model now sees a compact one (about 700) that describes the nested specs, and the full
+  pydantic model still validates every call. Turns that offered the forge had been squeezed
+  into empty or tool-less replies.
+* **An invented file.** "Write the test file and run the tests" ran the sandbox before reading
+  or writing anything (the first call could only be the sandbox) and showed a made-up
+  parse.py. A run request now requires some tool call first, with every offered tool
+  available, and a code block presented as an existing file needs a read this turn.
+* **Storage paths in replies.** The forge reported the storage path, so the model repeated it.
+  It now reports the workspace name.
+* **Citing other chats.** Passive recall showed chat titles and dates, which kept turning into
+  "you asked this on <date> in <title>". Snippets are now anonymous, and if a rewrite still
+  carries such a sentence, the sentence is cut.
+* **Memory noise.** The judge proposed one-off requests ("wants to check the CPU"), and one fact
+  was filed twice as "is called" and "is named". Both fixed.
+* **Stage directions in parentheses** ("(Attic rests, the house hums.)") are removed like the
+  italic ones.
+
+Still open: with the offline `hashing` embedder the session's new chat didn't find "uses pytest"
+for "how I like to write tests" (the default local embedding model is semantic and should); one
+Gemini fallback request was refused as an invalid argument and wasn't reproduced; and two
+free accounts allow roughly two full live runs a day on 120b.

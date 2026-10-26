@@ -11,7 +11,7 @@ import asyncio
 import csv
 import io
 from pathlib import PurePosixPath
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Literal, get_args
 
 import openpyxl
 from pydantic import BaseModel, Field, model_validator
@@ -100,7 +100,11 @@ class ForgeInput(StrictModel):
 
 
 class ForgeOutput(BaseModel):
-    """The created or changed file."""
+    """The created or changed file, as the model should describe it.
+
+    ``path`` is the workspace name the operator knows ("outputs/expenses.csv"). The storage
+    path and hash stay in the file record: a live run (2026-10-26) read them out to the operator.
+    """
 
     action: str
     file_id: str
@@ -108,7 +112,6 @@ class ForgeOutput(BaseModel):
     version: int
     size: int
     mime: str
-    sha256: str
     external_content: bool
     note: str = ""
 
@@ -135,6 +138,72 @@ class ArtifactForge(Tool):
     )
     input_model: ClassVar[type[StrictModel]] = ForgeInput
     output_model: ClassVar[type[BaseModel]] = ForgeOutput
+
+    def json_schema(self) -> dict[str, Any]:
+        """A compact schema: the nested specs are described, not spelled out.
+
+        The full schema was about 4,000 tokens, half of Groq's free-tier request cap, and
+        squeezed every turn that offered the forge (live run 2026-10-26). ``ForgeInput`` still
+        validates every call, and its errors go back to the model.
+        """
+        obj = {"type": "object"}
+        return {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["action"],
+            "properties": {
+                "action": {"type": "string", "enum": list(get_args(Action))},
+                "filename": {"type": "string", "description": "Output name with extension."},
+                "document": obj
+                | {
+                    "description": 'For create_document: {"title": str, "subtitle"?: str, '
+                    '"sections": [{"heading"?: str, "level"?: 1-3, "blocks": [block]}]}. A block '
+                    'is {"kind": "paragraph", "text"}, {"kind": "bullets", "items": [str], '
+                    '"ordered"?: bool}, {"kind": "table", "header": [str], "rows": [[str]]}, '
+                    '{"kind": "code", "text", "language"?} or {"kind": "image", "file_id", '
+                    '"caption"?}.'
+                },
+                "spreadsheet": obj
+                | {
+                    "description": 'For create_spreadsheet: {"sheets": [{"name": str, '
+                    '"columns": [{"name": str, "type"?: "text"|"integer"|"number"|"percent"|'
+                    '"currency"|"date"}], "rows": [[cell]]}]}. A cell is a string, number, '
+                    'boolean, null, or {"formula": "=SUM(B2:B4)"} (SUM, AVERAGE, MIN, MAX, '
+                    "COUNT, IF only)."
+                },
+                "chart": obj
+                | {
+                    "description": 'For create_chart: {"type": "line"|"bar"|"scatter"|'
+                    '"histogram"|"pie", "title"?, "x_label"?, "y_label"?, "categories"?: [str], '
+                    '"series": [{"name"?: str, "x"?: [number|str], "y": [number]}]}.'
+                },
+                "content": {"type": "string", "description": "For create_text."},
+                "source": {
+                    "type": "string",
+                    "description": "For edit_* and convert: att_... or file_... id, or the "
+                    "name of a file made here.",
+                },
+                "doc_ops": {
+                    "type": "array",
+                    "items": obj,
+                    "description": 'For edit_document: {"op": "replace_text", "find", '
+                    '"replace"}, {"op": "append_paragraph", "text"}, {"op": '
+                    '"insert_section_after", "after_heading", "section"} or {"op": '
+                    '"update_table_cell", "table_index", "row", "col", "text"}.',
+                },
+                "sheet_ops": {
+                    "type": "array",
+                    "items": obj,
+                    "description": 'For edit_spreadsheet: {"op": "set_cells", "sheet", '
+                    '"cells": {"B2": 5}}, {"op": "append_rows", "sheet", "rows": [[cell]]}, '
+                    '{"op": "add_sheet", "sheet": {...}} or {"op": "rename_sheet", '
+                    '"from_name", "to_name"}.',
+                },
+                "convert_to": {"type": "string", "enum": ["pdf", "csv", "xlsx"]},
+                "sheet": {"type": "string", "description": "Sheet to export when converting."},
+            },
+        }
+
     timeout_s: ClassVar[float] = 60.0
     start_line: ClassVar[str] = "forge_start"
     done_line: ClassVar[str] = "forge_done"
@@ -184,11 +253,10 @@ class ArtifactForge(Tool):
         out = ForgeOutput(
             action=inp.action,
             file_id=record.file_id,
-            path=record.path,
+            path=record.logical_name,
             version=record.version,
             size=record.size_bytes,
             mime=record.mime,
-            sha256=record.sha256,
             external_content=record.external_content,
             note=note,
         )

@@ -118,18 +118,18 @@ async def test_asking_for_a_ping_or_a_test_run_offers_the_host_tools(
         for text in ("Resolve pypi.org for me.", "Is api.github.com reachable?"):
             names = await offered(rt, script, text, "CONVERSATION")
             assert "network_ping_diagnostic" in names, text
-        # A run request goes straight to the sandbox (see the next test).
+        # A run request must start with a tool call (see the next test).
         names = await offered(
             rt, script, "Write the test file and run the tests in the sandbox.", "CONVERSATION"
         )
-        assert names == {"isolated_python_sandbox"}
+        assert {"isolated_python_sandbox", "file_system_scribe"} <= names
         small_talk = await offered(rt, script, "How are you doing today?", "CONVERSATION")
         assert "isolated_python_sandbox" not in small_talk
     finally:
         await rt.close()
 
 
-async def test_a_request_to_run_code_makes_the_first_call_a_sandbox_run(
+async def test_a_request_to_run_code_requires_a_tool_call_first(
     settings: Settings, script: RoleScript
 ) -> None:
     """Live run 2026-10-24: "write it and run a quick test of it" came back with code and no run."""
@@ -148,8 +148,9 @@ async def test_a_request_to_run_code_makes_the_first_call_a_sandbox_run(
             "Write a function parse_expense and run a quick test of it.",
         )
         first, second = script.requests("main")[-2:]
-        assert [t.name for t in first.tools] == ["isolated_python_sandbox"]
+        assert {"isolated_python_sandbox", "file_system_scribe"} <= {t.name for t in first.tools}
         assert first.tool_choice == "required"
+        assert "run the code in the sandbox" in first.system_dynamic
         assert len(second.tools) > 1 and second.tool_choice == "auto"
 
         for text in ("How do I run this on Windows?", "Write it, but don't run it yet."):
