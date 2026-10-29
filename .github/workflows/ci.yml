@@ -115,6 +115,16 @@ jobs:
           docker compose exec -T ultron ultron doctor | tee doctor.txt || true
           grep -q "embeddings: local_light" doctor.txt
           grep -q "no model key set" doctor.txt
+      - name: Local embeddings work from the baked-in model
+        run: |
+          docker compose exec -T -e HF_HUB_OFFLINE=1 ultron python -c "
+          import asyncio
+          from src.core.memory.embeddings import LocalEmbedder
+          e = LocalEmbedder('sentence-transformers/all-MiniLM-L6-v2')
+          v = asyncio.run(e.embed(['pytest, never unittest', 'I test with pytest']))
+          print('dimension', len(v[0]), 'similarity', round(sum(a*b for a, b in zip(*v)), 3))
+          assert len(v[0]) == 384
+          "
       - name: Data survives a restart
         run: |
           docker compose restart ultron

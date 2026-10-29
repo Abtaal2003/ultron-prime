@@ -29,13 +29,28 @@ class Finding:
     message: str
 
 
+VISION_ROLES = frozenset({"quarantine_reader_vision"})
+
+
+def _can_see(provider: str, model: str) -> bool:
+    from src.core.wiring import build_providers
+
+    # Adapters built with placeholder keys only to read model capabilities; never called.
+    dummy = Settings(_env_file=None, anthropic_api_key="x", groq_api_key="x", gemini_api_key="x")
+    adapter = build_providers(dummy).get(provider)
+    return bool(adapter and adapter.capabilities(model).vision)
+
+
 def effective_route(settings: Settings, role: str) -> str | None:
-    """The first route for ``role`` whose provider has a key: what will actually answer."""
+    """The first route for ``role`` that can answer it: a key, and eyes for image roles."""
     keys = settings.key_presence()
     for raw in [getattr(settings, f"route_{role}"), *settings.fallback_chain]:
         route = parse_route(raw)
-        if keys.get(route.provider):
-            return str(route)
+        if not keys.get(route.provider):
+            continue
+        if role in VISION_ROLES and not _can_see(route.provider, route.model):
+            continue
+        return str(route)
     return None
 
 
@@ -70,7 +85,16 @@ def check(settings: Settings) -> list[Finding]:
     for role in ROLES:
         route = effective_route(settings, role)
         if route is None:
-            if named:
+            if named and role in VISION_ROLES:
+                out.append(
+                    Finding(
+                        "warn",
+                        f"route {role}",
+                        "no model with a key can read images, so image uploads will be refused. "
+                        "A Gemini key (free tier) covers it.",
+                    )
+                )
+            elif named:
                 out.append(
                     Finding(
                         "fail",

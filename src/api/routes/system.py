@@ -10,7 +10,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from src.api.deps import Authed, State
-from src.config import Settings
+from src.config import Settings, parse_route
 from src.core.db import Database, from_json
 from src.core.errors import ValidationFailure
 from src.core.events import utcnow_iso
@@ -160,7 +160,9 @@ async def status(session: Authed, state: State) -> dict[str, Any]:
     """Header data: model, vault size, guard health, a small host snapshot."""
     runtime = state.runtime
     vault = runtime.services.vault
-    main = runtime.router.route_for("main")
+    chain = [runtime.router.route_for("main"), *map(parse_route, state.settings.fallback_chain)]
+    reachable = [r for r in chain if runtime.router.capabilities_of(r) is not None]
+    main = reachable[0] if reachable else chain[0]  # what will actually answer
     guard = runtime.router.route_for("guard")
     matrix = runtime.router.capability_matrix()
     try:
@@ -176,7 +178,7 @@ async def status(session: Authed, state: State) -> dict[str, Any]:
     return {
         "provider": main.provider,
         "model": main.model,
-        "main_available": matrix["main"]["available"],
+        "main_available": bool(reachable),
         "vault_count": await vault.count() if vault else 0,
         "guard": {
             "route": str(guard),

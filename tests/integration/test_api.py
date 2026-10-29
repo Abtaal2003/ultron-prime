@@ -551,6 +551,18 @@ async def test_settings_never_expose_keys_and_patch_persists(
 async def test_status_and_redteam(api: Api) -> None:
     status = (await api.get("/status")).json()
     assert status["provider"] == "fake" and status["vault_count"] == 0
+    assert status["main_available"] is True
+    main = api.runtime.settings.route_main
+    api.runtime.settings.route_main = "groq:no-key-for-this"
+    try:  # the header names what will answer: the first fallback with a key
+        moved = (await api.get("/status")).json()
+        assert moved["main_available"] is True and moved["provider"] == "fake"
+        chain = api.runtime.settings.fallback_chain
+        api.runtime.settings.fallback_chain = []
+        assert (await api.get("/status")).json()["main_available"] is False
+        api.runtime.settings.fallback_chain = chain
+    finally:
+        api.runtime.settings.route_main = main
     assert status["guard"]["available"] is True and status["remote"] is False
     assert "cpu" in (status["host"] or {"cpu": 1})
     assert (await api.get("/redteam/latest")).json() == {"run": None}

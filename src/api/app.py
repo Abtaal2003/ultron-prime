@@ -36,6 +36,13 @@ def _url(cfg: Settings) -> str:
     return f"{scheme}://{host}:{cfg.port}"
 
 
+def _origins(cfg: Settings) -> list[str]:
+    """Configured origins, plus this machine's own address on the served port in local mode."""
+    own = [f"http://localhost:{cfg.port}", f"http://127.0.0.1:{cfg.port}"]
+    extra = [o for o in own if o not in cfg.allowed_origins] if cfg.access_mode == "local" else []
+    return [*cfg.allowed_origins, *extra]
+
+
 def _print_first_run(passphrase: str, cfg: Settings) -> None:
     bar = "=" * 64
     sys.stderr.write(
@@ -119,7 +126,7 @@ def create_app(
 
     # Middleware: the last added runs first (outermost).
     app.add_middleware(BodyLimit, max_bytes=cfg.max_request_mb * 1024 * 1024)
-    app.add_middleware(OriginCheck, allowed=list(cfg.allowed_origins))
+    app.add_middleware(OriginCheck, allowed=_origins(cfg))
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(cfg.allowed_hosts))
     app.add_middleware(SecurityHeaders, hsts=bool(cfg.tls_cert_file))
     return app

@@ -28,6 +28,21 @@ def _bind_host(settings: Settings) -> str:
     return settings.host
 
 
+def _prefetch_embeddings(settings: Settings) -> bool:
+    """Fetch a local embedding model before startup; explain and refuse if that fails."""
+    from src.core.errors import ConfigurationError
+    from src.core.memory.embeddings import LocalEmbedder, build_embedder
+
+    try:
+        embedder = build_embedder(settings)
+        if isinstance(embedder, LocalEmbedder):
+            embedder.prefetch(sys.stderr.write)
+    except ConfigurationError as exc:
+        sys.stderr.write(f"Ultron can't start: {exc}\n")
+        return False
+    return True
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     """Run the web server."""
     import uvicorn
@@ -37,6 +52,10 @@ def cmd_serve(args: argparse.Namespace) -> int:
     settings = get_settings()
     host = _bind_host(settings)
     port = args.port or settings.port
+    if port != settings.port:
+        settings = settings.model_copy(update={"port": port})
+    if not _prefetch_embeddings(settings):
+        return 2
     kwargs: dict[str, object] = {}
     if settings.tls_cert_file and settings.tls_key_file:
         kwargs.update(ssl_certfile=settings.tls_cert_file, ssl_keyfile=settings.tls_key_file)

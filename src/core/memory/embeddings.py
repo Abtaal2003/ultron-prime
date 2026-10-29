@@ -7,6 +7,7 @@ embedding model or its dimension changes, the collection is dropped and re-embed
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import hashlib
 import math
 import re
@@ -96,6 +97,34 @@ class LocalEmbedder:
         self.name = f"local:{model_name}"
         self._model: Any = None
         self.dimension = 0
+
+    def prefetch(self, say: Callable[[str], object] | None = None) -> bool:
+        """Download the model files unless cached; ``True`` when it downloaded.
+
+        Run before the server starts so a first start without network fails with one plain
+        sentence instead of a traceback from inside startup.
+        """
+        try:
+            from huggingface_hub import snapshot_download
+        except ImportError as exc:
+            raise ConfigurationError(
+                "local embeddings need the 'embeddings' extra: uv sync --extra embeddings"
+            ) from exc
+        with contextlib.suppress(Exception):  # not cached yet (or a partial download)
+            snapshot_download(self.model_name, local_files_only=True)
+            return False
+        if say:
+            say(f"Downloading the embedding model {self.model_name} (first start only)...\n")
+        try:
+            snapshot_download(self.model_name)
+        except Exception as exc:
+            raise ConfigurationError(
+                f"couldn't download the embedding model {self.model_name} "
+                f"({type(exc).__name__}). It comes from Hugging Face on first start, so check "
+                "the connection, or set EMBEDDING_BACKEND=gemini (needs GEMINI_API_KEY) or "
+                "hashing (works offline, weaker recall)."
+            ) from exc
+        return True
 
     def _load(self) -> Any:
         if self._model is None:

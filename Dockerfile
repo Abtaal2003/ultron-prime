@@ -37,13 +37,17 @@ RUN useradd --create-home --uid 10001 ultron \
  && chown -R ultron:ultron /app/data /app/workspace
 USER ultron
 
+# Bake the small embedding model in, so the first start needs no download. It lands in the data
+# volume's path; Docker copies it into a new named volume on first mount.
+ENV HF_HOME=/app/data/models
+RUN python -c "from huggingface_hub import snapshot_download as d; d('sentence-transformers/all-MiniLM-L6-v2')"
+
 # CONTAINER: bind the published port (compose maps it to the host's loopback only).
 # SANDBOX_NETWORK=host: Docker's default seccomp profile blocks the user namespaces that
 # network isolation needs, so the container itself is the boundary for code runs.
 ENV CONTAINER=true \
     SANDBOX_NETWORK=host \
     EMBEDDING_BACKEND=local_light \
-    HF_HOME=/app/data/models \
     XDG_CACHE_HOME=/tmp/cache \
     MPLCONFIGDIR=/tmp/matplotlib \
     ALLOWED_HOSTS=localhost,127.0.0.1 \

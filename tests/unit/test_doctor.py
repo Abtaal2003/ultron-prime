@@ -106,6 +106,9 @@ async def test_live_pings_each_distinct_route_once(
         def __init__(self, fail: bool) -> None:
             self.fail = fail
 
+        def capabilities(self, model: str) -> Any:
+            return type("Caps", (), {"vision": "gemini" in model})()
+
         async def chat(self, request: Any) -> None:
             calls.append(request.model)
             if self.fail:
@@ -137,3 +140,10 @@ def test_the_free_tier_preset_is_a_valid_setup(tmp_path: Path) -> None:
     assert found["route main"].message == "groq:openai/gpt-oss-120b"
     assert "free tier" not in found
     assert not [f for f in found.values() if f.level == "fail"]
+
+
+def test_image_reading_needs_a_model_that_can_see(tmp_path: Path) -> None:
+    found = by_topic(doctor.check(make(tmp_path, groq_api_key="k")))
+    assert found["route quarantine_reader_vision"].level == "warn"
+    found = by_topic(doctor.check(make(tmp_path, groq_api_key="k", gemini_api_key="k")))
+    assert found["route quarantine_reader_vision"].message == "gemini:gemini-3.5-flash"

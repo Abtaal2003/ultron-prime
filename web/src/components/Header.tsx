@@ -29,9 +29,13 @@ export function Header({ conn, onMenu, onStatus }: { conn: StreamState | "idle";
       )}
       {layout !== "phone" && s && (
         <p className="ml-auto flex flex-wrap gap-x-4 text-xs text-muted">
-          <span>
-            main: {s.provider}/{s.model}
-          </span>
+          {s.main_available ? (
+            <span>
+              main: {s.provider}/{s.model}
+            </span>
+          ) : (
+            <span className="text-neon-soft">no model key: run ultron doctor</span>
+          )}
           <span>vault {s.vault_count}</span>
           <span>guard {s.guard.status === "ok" ? "ok" : "heuristic"}</span>
           {s.budget && s.budget.daily_usd > 0 && (

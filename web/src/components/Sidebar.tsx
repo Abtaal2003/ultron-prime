@@ -133,7 +133,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             )}
           </li>
         ))}
-        {chats.isSuccess && shown.length === 0 && <li className="p-4 text-sm text-muted">No chats match.</li>}
+        {chats.isSuccess && shown.length === 0 && <li className="p-4 text-sm text-muted">{filter.trim() ? "No chats match." : "No chats yet. Start one above."}</li>}
       </ul>
       <div className="border-t border-panel-border p-3">
         <NavLink to="/settings" onClick={onNavigate} className="btn w-full no-underline">
