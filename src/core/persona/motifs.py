@@ -32,6 +32,10 @@ FAMILIES: dict[str, re.Pattern[str]] = {
     ),
     "ship": re.compile(r"\b(planks?|hulls?|vessels?|theseus)\b", re.I),
     "puppetry": re.compile(r"\b(puppets?|puppetry|marionettes?|no strings)\b", re.I),
+    "structure": re.compile(
+        r"\b(architecture|scaffold(s|ing)?|blueprints?|load-bearing|foundations?)\b", re.I
+    ),
+    "pruning": re.compile(r"\b(dead code|prun(e|ed|es|ing)|bloat(ed)?|cull(ed|ing)?)\b", re.I),
 }
 """Image families and the words that signal them."""
 
