@@ -116,7 +116,7 @@ def configure_logging(
     if not stdlib:
         return
     logging.basicConfig(level=getattr(logging, level), handlers=[_StderrHandler()], force=True)
-    for noisy in ("httpx", "httpcore", "chromadb", "sentence_transformers"):
+    for noisy in ("httpx", "httpcore", "chromadb", "sentence_transformers", "google_genai"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
 

@@ -13,7 +13,9 @@ from src.config import PROJECT_ROOT, Settings, get_settings
 def _bind_host(settings: Settings) -> str:
     """Resolve the interface to bind for the access mode (spec 6.5)."""
     if settings.access_mode == "local":
-        return "127.0.0.1"
+        # Inside the Docker image "local" means the published port, which compose binds to
+        # the host's loopback only; the container's own loopback would be unreachable.
+        return "0.0.0.0" if settings.container else "127.0.0.1"  # noqa: S104
     if settings.host in {"127.0.0.1", "localhost", ""}:
         sys.stderr.write(
             f"ACCESS_MODE={settings.access_mode} needs HOST set to the {settings.access_mode} "
@@ -82,20 +84,20 @@ def cmd_reset_passphrase(_: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_check(_: argparse.Namespace) -> int:
-    """Validate configuration and model routing without starting the server."""
+def cmd_doctor(args: argparse.Namespace) -> int:
+    """Check keys, routes, folders, embeddings and the sandbox; ``--live`` pings each route."""
+    from src import doctor
+
     settings = get_settings()
-    problems: list[str] = []
-    if not settings.charter_file.is_file():
-        problems.append(f"charter missing at {settings.charter_file}")
-    for provider, present in settings.key_presence().items():
-        sys.stdout.write(f"{provider:10s} key {'present' if present else 'absent'}\n")
-    if not any(settings.key_presence().values()):
-        problems.append("no provider key set; the agent cannot answer")
-    for line in problems:
-        sys.stdout.write(f"PROBLEM: {line}\n")
+    findings = doctor.check(settings)
+    if getattr(args, "live", False):
+        findings += asyncio.run(doctor.live(settings))
+    code = doctor.report(findings, sys.stdout.write)
     sys.stdout.write(f"project root: {PROJECT_ROOT}\n")
-    return 1 if problems else 0
+    return code
+
+
+cmd_check = cmd_doctor
 
 
 def _setup_logging() -> None:
@@ -121,7 +123,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("reset-passphrase", help="issue a new operator passphrase").set_defaults(
         func=cmd_reset_passphrase
     )
-    sub.add_parser("check", help="validate configuration").set_defaults(func=cmd_check)
+    for name in ("doctor", "check"):
+        doc = sub.add_parser(name, help="check the setup and explain any problem")
+        doc.add_argument("--live", action="store_true", help="also send one tiny request per route")
+        doc.set_defaults(func=cmd_check if name == "check" else cmd_doctor)
     args = parser.parse_args(argv)
     _setup_logging()
     if not getattr(args, "func", None):

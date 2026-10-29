@@ -23,6 +23,7 @@ def settings(tmp_path: Path) -> Settings:
         attachments_path=str(tmp_path / "data" / "attachments"),
         charter_path="./src/core/persona/charter.md",
         embedding_backend="hashing",
+        sandbox_network="host",  # CI runners may not allow user namespaces; tested separately
     )
 
 

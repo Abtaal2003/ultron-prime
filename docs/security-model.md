@@ -27,7 +27,7 @@ do when that happens, and the answer is enforced in code.
 | Unauthorised memory writes | Gatekeeper judgement plus per-memory consent, audit log | `test_memory_vault_manager.py`, `test_cognition_tools.py` |
 | Drive-by requests, DNS rebinding, CSRF, XSS | Auth on every route, trusted hosts, origin checks, SameSite=Strict, strict CSP, sanitised Markdown | `test_api.py`, `web/e2e/` |
 | Path traversal, command injection | Resolved-path containment, strict host validation, argument-list exec | `test_security.py`, `test_tools_host.py` |
-| Runaway sandbox code | Subprocess, rlimits, scrubbed env, no network | `test_tools_search_sandbox.py` |
+| Runaway sandbox code | Subprocess, rlimits, scrubbed env, own network namespace with no interfaces | `test_tools_search_sandbox.py` |
 | Unbounded cost or loops | Iteration, time and hold caps per turn; an optional daily spending cap (`DAILY_BUDGET_USD`) checked before every model call | `test_agent_turns.py`, `test_tracing_and_budget.py` |
 | Supply chain | Locked dependencies, `pip-audit` and gitleaks in CI | `.github/workflows/ci.yml` |
 
@@ -77,9 +77,13 @@ do when that happens, and the answer is enforced in code.
   worst case.
 * **The L1 indirect patterns were written after reading the `important_instructions` text.** They are
   not held out, so their AgentDojo result overstates generalisation. The `direct` attack shows it.
-* **The sandbox is a subprocess.** It has rlimits, a scrubbed environment and a Python level
-  network block, which is not isolation, so the gate treats every sandbox run as egress. A Docker
-  or gVisor backend is not built and the setting for it was removed rather than left misleading.
+* **The sandbox is a subprocess, not a VM.** It has rlimits and a scrubbed environment, and by
+  default (`SANDBOX_NETWORK=isolated`) it runs in its own user and network namespace, so code
+  has no network interface at all; where the kernel doesn't allow that, runs are refused rather
+  than silently given the network. It still shares the filesystem view of the user running
+  Ultron, limited to a temporary directory by convention and by the Python-level guards, not by
+  a mount namespace. With `SANDBOX_NETWORK=host` (the Docker image, where the container is the
+  boundary) the gate treats every run as egress. A gVisor or Firecracker backend is not built.
 * **Known advisories in a dependency.** `pip-audit` reports five unfixed chromadb advisories
   (CVE-2026-45829, -45830, -45831, -45833). All concern Chroma's HTTP server: REST endpoints,
   its RBAC provider and remote model loading. Ultron uses only the embedded `PersistentClient`

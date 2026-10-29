@@ -1,0 +1,28 @@
+# docker compose up -d        start (first build takes a few minutes)
+# docker compose logs ultron  shows the URL and the one-time passphrase on first start
+# docker compose run --rm ultron ultron doctor --live    checks keys and routes
+services:
+  ultron:
+    build: .
+    image: ultron-prime:latest
+    env_file: .env
+    environment:              # these win over .env: they describe the container itself
+      CONTAINER: "true"
+      SANDBOX_NETWORK: host
+    ports:
+      - "127.0.0.1:8787:8787"   # this machine only; see README before exposing it further
+    volumes:
+      - ultron-data:/app/data
+      - ultron-workspace:/app/workspace
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  ultron-data:
+  ultron-workspace:

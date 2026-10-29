@@ -78,6 +78,10 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = Field(8787, ge=1, le=65535)
     access_mode: AccessMode = "local"
+    container: bool = False
+    """Set by the Docker image. With ``ACCESS_MODE=local`` the server then listens on the
+    container's own interface, and the host decides who can reach it (the compose file publishes
+    the port on 127.0.0.1 only)."""
     allowed_hosts: CsvList = ["localhost", "127.0.0.1"]
     allowed_origins: CsvList = ["http://localhost:8787"]
     session_idle_hours: float = Field(12, gt=0)
@@ -182,6 +186,10 @@ class Settings(BaseSettings):
     workspace_root: str = "./workspace"
     tavily_api_key: SecretStr = SecretStr("")
     sandbox_backend: Literal["subprocess"] = "subprocess"
+    sandbox_network: Literal["isolated", "host"] = "isolated"
+    """``isolated`` runs code in a Linux network namespace with no network at all, and refuses
+    to run where that isn't available. ``host`` gives code the machine's network: only for a
+    trusted single user, or inside a container that is itself the boundary."""
     sandbox_timeout_s: int = Field(10, ge=1, le=30)
     sandbox_memory_mb: int = Field(256, ge=32)
     sandbox_max_output_files: int = Field(10, ge=0)

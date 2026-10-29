@@ -30,11 +30,18 @@ API_PREFIX = "/api/v1"
 WEB_DIST = PROJECT_ROOT / "web" / "dist"
 
 
-def _print_first_run(passphrase: str) -> None:
+def _url(cfg: Settings) -> str:
+    scheme = "https" if cfg.tls_cert_file and cfg.tls_key_file else "http"
+    host = "localhost" if cfg.access_mode == "local" else cfg.host
+    return f"{scheme}://{host}:{cfg.port}"
+
+
+def _print_first_run(passphrase: str, cfg: Settings) -> None:
     bar = "=" * 64
     sys.stderr.write(
         f"\n{bar}\n  ULTRON PRIME: operator passphrase (shown once, store it safely)\n\n"
-        f"    {passphrase}\n\n  Change it later in Settings.\n{bar}\n\n"
+        f"    {passphrase}\n\n  Open {_url(cfg)} and sign in with it.\n"
+        f"  Change it later in Settings.\n{bar}\n\n"
     )
     sys.stderr.flush()
 
@@ -55,7 +62,7 @@ def create_app(
         auth_service = AuthService(rt.db, cfg)
         first = await auth_service.ensure_passphrase()
         if first:
-            _print_first_run(first)
+            _print_first_run(first, cfg)
         await system.load_overrides(rt.db, cfg, rt.agent.disabled_tools)
         await rt.bus.purge_expired(cfg.turn_event_retention_hours)
         await rt.agent.recover_interrupted()

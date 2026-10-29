@@ -464,3 +464,43 @@ def test_bootstrap_is_valid_python() -> None:
     compile(BOOTSTRAP, "boot.py", "exec")
     assert sys.executable
     assert os.name
+
+
+async def test_an_isolated_run_refuses_where_the_network_cant_be_cut(
+    ctx_factory, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    from src.core.errors import PolicyDenied
+    from src.tools import sandbox as sbx
+
+    monkeypatch.setattr(sbx, "network_isolation_prefix", lambda: None)
+    base = ctx_factory()
+    ctx = ctx_factory(settings=base.settings.model_copy(update={"sandbox_network": "isolated"}))
+    tool = sbx.IsolatedPythonSandbox()
+    with pytest.raises(PolicyDenied, match="SANDBOX_NETWORK=host"):
+        await tool.run(sbx.SandboxInput(code="print(1)"), ctx)
+    assert tool.is_egress_call(None, ctx) is False
+    host = ctx_factory()
+    assert tool.is_egress_call(None, host) is True  # the test settings use host networking
+
+
+@pytest.mark.skipif(
+    __import__("src.tools.sandbox", fromlist=["x"]).network_isolation_prefix() is None,
+    reason="this system doesn't allow unprivileged user namespaces",
+)
+async def test_an_isolated_run_has_no_network(ctx_factory) -> None:  # type: ignore[no-untyped-def]
+    from src.tools import sandbox as sbx
+
+    base = ctx_factory()
+    ctx = ctx_factory(settings=base.settings.model_copy(update={"sandbox_network": "isolated"}))
+    code = (
+        "import socket\n"
+        "try:\n"
+        "    socket.create_connection(('1.1.1.1', 443), timeout=3)\n"
+        "    print('CONNECTED')\n"
+        "except OSError as e:\n"
+        "    print('NO NETWORK', type(e).__name__)\n"
+        "print(sum(range(5)))\n"
+    )
+    out = await sbx.IsolatedPythonSandbox().run(sbx.SandboxInput(code=code), ctx)
+    stdout = out.data.stdout  # type: ignore[union-attr]
+    assert "CONNECTED" not in stdout and "NO NETWORK" in stdout and "10" in stdout

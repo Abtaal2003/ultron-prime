@@ -13,9 +13,12 @@ A turn is **tainted** once it has read untrusted content: a tool flagged `taints
 (`web_omniscience_search`, `recall_memories`, `search_past_chats`, `recall_chat`), retrieved
 memories or history, or ingested attachments.
 
-Once tainted, an egress call (a search, a ping, an outbound sandbox run, anything a tool marks as
-egress) proceeds only if every outbound argument is **traceable to the operator's own message**.
+Once tainted, an egress call (a search, a ping, a sandbox run when `SANDBOX_NETWORK=host`,
+anything a tool marks as egress) proceeds only if every outbound argument is **traceable to the operator's own message**.
 Otherwise the call is held and the operator sees the exact string that would leave the machine.
+
+With the default `SANDBOX_NETWORK=isolated` a sandbox run has no network interface, so it can't
+send anything and is not egress; it runs without a hold.
 
 `EGRESS_POLICY` selects `confirm_tainted` (hold and ask), `deny_tainted` (refuse) or `off`.
 At most `EGRESS_MAX_HOLDS_PER_TURN` holds are allowed per turn; the next one is denied.

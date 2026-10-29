@@ -87,3 +87,39 @@ jobs:
       - name: npm audit
         run: npm audit --omit=dev --audit-level=high
         working-directory: web
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the image
+        run: docker build -t ultron-prime:ci .
+      - name: Start it the way compose does and wait for health
+        run: |
+          touch .env
+          docker compose up -d
+          for i in $(seq 1 60); do
+            state=$(docker inspect -f '{{.State.Health.Status}}' "$(docker compose ps -q ultron)")
+            [ "$state" = healthy ] && break
+            sleep 2
+          done
+          docker compose logs ultron | tail -40
+          [ "$state" = healthy ]
+      - name: Health, web app and first-run passphrase
+        run: |
+          curl -fsS http://127.0.0.1:8787/api/v1/health
+          curl -fsS http://127.0.0.1:8787/ | grep -qi '<div id="root"'
+          docker compose logs ultron | grep -q "operator passphrase"
+      - name: Doctor runs inside the image
+        run: |
+          docker compose exec -T ultron ultron doctor | tee doctor.txt || true
+          grep -q "embeddings: local_light" doctor.txt
+          grep -q "no model key set" doctor.txt
+      - name: Data survives a restart
+        run: |
+          docker compose restart ultron
+          sleep 20
+          curl -fsS http://127.0.0.1:8787/api/v1/health
+          [ "$(docker compose logs ultron | grep -c 'operator passphrase')" = 1 ]
+      - if: always()
+        run: docker compose down -v

@@ -5,9 +5,12 @@ directory with a scrubbed environment, a wall-clock timeout, a process-group kil
 resource limits. A small in-process audit hook adds *defence in depth* (no process spawning, no
 sockets, no reads of the application's data directories).
 
-**This is not a hardened sandbox.** A subprocess with rlimits shares the user's filesystem and
-network; the audit hook is bypassable by native code. ``docs/security-model.md`` says so, and
-the policy gate treats this tool as an egress path in tainted turns for that reason.
+**This is not a hardened sandbox.** A subprocess with rlimits shares the user's filesystem; the
+audit hook is bypassable by native code. ``docs/security-model.md`` says so. Network access is
+cut at the kernel when ``SANDBOX_NETWORK=isolated`` (the default): the program runs in its own
+Linux network namespace (``unshare --user --net``), which has no interfaces but loopback. Where
+that isn't possible the tool refuses to run unless the operator sets ``SANDBOX_NETWORK=host``,
+and then the policy gate treats every run as an egress path in tainted turns.
 
 Files: ``input_files`` are copied read-only into ``./in/``; anything the program writes to
 ``./out/`` is harvested, validated, scanned, and registered as a new file version.
@@ -217,6 +220,36 @@ def _task_count_for_user() -> int | None:
         return None
 
 
+_UNSHARE = ["unshare", "--user", "--map-root-user", "--net", "--"]
+_isolation: list[str] | bool | None = False  # False: not probed yet
+
+
+def network_isolation_prefix() -> list[str] | None:
+    """The command prefix that runs a program with no network, or ``None`` if unavailable.
+
+    Probed once: ``unshare`` must exist and the kernel must allow unprivileged user namespaces
+    (some distributions and default container profiles don't).
+    """
+    global _isolation
+    if _isolation is False:
+        _isolation = None
+        if POSIX and shutil.which("unshare"):
+            import subprocess
+
+            try:
+                done = subprocess.run(  # noqa: S603
+                    [*_UNSHARE, sys.executable, "-c", "pass"],
+                    capture_output=True,
+                    timeout=10,
+                    check=False,
+                )
+                if done.returncode == 0:
+                    _isolation = list(_UNSHARE)
+            except (OSError, subprocess.SubprocessError):
+                _isolation = None
+    return _isolation if isinstance(_isolation, list) else None
+
+
 def _kill_group(proc: asyncio.subprocess.Process) -> None:
     if proc.returncode is not None:
         return
@@ -273,8 +306,8 @@ class IsolatedPythonSandbox(Tool):
         return float(args.timeout_s) + 15.0
 
     def is_egress_call(self, args: Any, ctx: ToolContext) -> bool:
-        """The subprocess backend cannot enforce 'no network', so it always counts as egress."""
-        return True
+        """A run with no network can't send anything out; with the host's network it can."""
+        return ctx.settings.sandbox_network != "isolated"
 
     def outbound_strings(self, args: Any) -> list[tuple[str, str]]:
         """The code is what could carry data out; the gate shows it to the operator."""
@@ -322,6 +355,15 @@ class IsolatedPythonSandbox(Tool):
             ],
         }
         argv = [sys.executable, "-I", str(workdir / "boot.py"), json.dumps(cfg)]
+        if settings.sandbox_network == "isolated":
+            prefix = network_isolation_prefix()
+            if prefix is None:
+                raise PolicyDenied(
+                    "the sandbox can't cut off network access on this system (it needs Linux "
+                    "user namespaces). Set SANDBOX_NETWORK=host to run code with network "
+                    "access, which is only safe for a trusted single user."
+                )
+            argv = [*prefix, *argv]
         kwargs: dict[str, Any] = (
             {"start_new_session": True}
             if POSIX
