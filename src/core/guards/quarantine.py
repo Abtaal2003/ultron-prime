@@ -310,13 +310,14 @@ class QuarantinedReader:
         ext: str | None = None,
         images: list[tuple[str, bytes]] | None = None,
         ctx: CallContext | None = None,
+        _stored: StoredValue | None = None,
     ) -> Extraction:
         """Store ``text``, extract with the reader, sanitise, and emit a ``QuarantineRead``."""
         name = schema_name or default_schema(source, ext)
         schema = SCHEMAS.get(name)
         if schema is None:
             raise PolicyDenied(f"unknown extraction schema '{name}' (allowed: {sorted(SCHEMAS)})")
-        value = store.put(source, text)
+        value = _stored or store.put(source, text)
         role = "quarantine_reader_vision" if images else "quarantine_reader"
         try:
             parsed = await self.router.structured(
@@ -344,6 +345,19 @@ class QuarantinedReader:
                 or run_prefilter(value.text, untrusted=True).severity >= 2
             )
             clean["injection_suspected"] = suspected
+            if (
+                name == "KeyFacts"
+                and not clean.get("facts")
+                and len(value.text) >= 80
+                and not images
+            ):
+                # gpt-oss-20b returned no facts for a one-result search about half the time
+                # (2026-10-29), and the reply said the search found nothing. A summary is the
+                # sturdier schema, so ask for one instead of passing on an empty list.
+                log.info("quarantine_empty_facts_retry", handle=value.handle)
+                return await self.read(
+                    store, text, source, "Summary", ext=ext, ctx=ctx, _stored=value
+                )
             value.extraction, value.schema_name = clean, name
             extraction = Extraction(
                 value.handle, source, name, clean, suspected, truncated=value.truncated

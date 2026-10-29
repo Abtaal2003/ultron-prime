@@ -7,7 +7,7 @@ updated on 2026-10-20 after adding tracing and the spending cap.
 |---|---|
 | `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT,RET,PIE,C90) | clean |
 | `mypy` strict on `src`, `redteam`, `evals` | clean, 123 files |
-| `pytest --cov` | 899 passed, 1 skipped (no `ping` binary), coverage 91.86 percent (gate 85) |
+| `pytest --cov` | 904 passed, 1 skipped (no `ping` binary), coverage 91.86 percent (gate 85) |
 | Web: eslint (max warnings 0), `tsc --noEmit`, vitest | clean, 27 tests |
 | Web: `vite build` (PWA) | builds |
 | Playwright, Chromium desktop and phone profiles, axe accessibility | 32 passed, 4 skipped (phone-only specs on the desktop profile) |
@@ -381,3 +381,41 @@ Still open: with the offline `hashing` embedder the session's new chat didn't fi
 for "how I like to write tests" (the default local embedding model is semantic and should); one
 Gemini fallback request was refused as an invalid argument and wasn't reproduced; and two
 free accounts allow roughly two full live runs a day on 120b.
+
+### Retests (2026-10-27 and 2026-10-29)
+
+| Run | Result |
+|:--|:--|
+| [27 October live run](../data/evals/live-tools-2026-10-27.md) | 26 of 30 (two cases out of quota, two pasted tool fields) |
+| [29 October live run](../data/evals/live-tools-2026-10-29.md) | 27 of 30 |
+| [Recheck of the affected cases](../data/evals/live-tools-2026-10-29-recheck.md), after the fixes | 7 of 7 |
+| Long session, before and after the fixes | every turn finished both times; the second run fixed the four bad turns below |
+| Offline suite | 904 passed, 1 skipped, coverage 91.86 percent |
+
+Found and fixed:
+
+* **Trimming cut the history out of a turn.** When a request was still too big after the first
+  trim, a harder trim dropped all earlier messages, and "save it to ledger/parse.py" saved an
+  invented FastAPI router instead of the function from the turn before. The harder trim now
+  keeps the last exchange, and a request the primary model still refuses as too large goes to
+  a fallback with room for it (a request can now skip a named route), instead of being cut
+  again.
+* **A substitute for a missing delete.** Asked to delete a file, the model emptied it, a change
+  nobody asked for; it also saved files on its own while "running a quick test". The rules now
+  say to change only the files asked for, to say so when the exact request isn't possible, and
+  to try code in the sandbox. Rerun twice, both turns behaved.
+* **"Refused." for a poisoned upload.** The model refused to summarise notes that contained a
+  planted instruction. The rules now say to ignore the instruction, still do the task, and
+  mention it in one line; the rerun summarised the notes and named the attempt.
+* **Empty rewrites.** A rewrite that came back empty was shown as an empty reply. An empty
+  rewrite now keeps the draft when its only problems were style, and fails safe otherwise.
+* **Blocked for naming the file.** An append said "added to notes/todo.md" and was blocked,
+  because the claim check compared names with storage paths. It now accepts workspace names.
+* **Searches that "found nothing".** gpt-oss-20b sometimes extracts no facts from a web result;
+  an empty fact list now falls back to a summary of the same stored text.
+* **Rewrite notes (27 October).** One catch-all note for every rewrite made the model answer with
+  lists of tool fields. Each problem found now gets its own short instruction.
+
+Still open: a style example's subject still leaks into a reply now and then (one in the session,
+about Postgres), and a past-chat recall once opened the wrong chat (it found the right one when
+rerun).

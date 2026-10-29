@@ -163,6 +163,8 @@ class ChatRequest(BaseModel):
     cache_system: bool = True
     role: str = ""
     allow_thinking: bool = True
+    skip_routes: list[str] = Field(default_factory=list)
+    """Routes ("provider:model") not to try for this request, e.g. one that said it's too big."""
 
 
 class Usage(BaseModel):

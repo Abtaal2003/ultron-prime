@@ -59,3 +59,25 @@ def test_a_range_read_defaults_to_the_first_sheet() -> None:
 
     data = _xlsx([["item", "eur"], ["rent", 850]])
     assert read_range(data, None, "A1:B2") == [["item", "eur"], ["rent", "850"]]
+
+
+async def test_an_empty_key_facts_extraction_falls_back_to_a_summary(settings) -> None:  # type: ignore[no-untyped-def]
+    from src.core.db import Database
+    from src.core.guards.quarantine import QuarantinedReader, ValueStore
+    from src.core.llm.fake import FakeProvider, Reply
+    from src.core.llm.router import LLMRouter
+
+    s = settings.model_copy(update={"route_quarantine_reader": "fake:m", "fallback_chain": []})
+    db = Database(":memory:")
+    await db.connect()
+    fake = FakeProvider(
+        [Reply(structured={"facts": []}), Reply(structured={"summary": "FastAPI 0.162.0 is out."})],
+        name="fake",
+    )
+    reader = QuarantinedReader(LLMRouter(s, {"fake": fake}, db), s)
+    text = (
+        '{"results": [{"title": "fastapi", "snippet": "fastapi 0.162.0. Released: Oct 23, 2026."}]}'
+    )
+    ex = await reader.read(ValueStore(), text, "web")
+    assert ex.schema_name == "Summary" and ex.data and "0.162.0" in ex.data["summary"]
+    await db.close()

@@ -99,7 +99,8 @@ class Turn:
     stream_blocked: bool = False
     camel_done: bool = False
     compacted: bool = False
-    size_retried: bool = False
+    size_retries: int = 0
+    skip_routes: list[str] = field(default_factory=list)
     schema_retries: int = 0
     memory_statuses: list[str] = field(default_factory=list)
     files_named: list[str] = field(default_factory=list)

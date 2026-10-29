@@ -334,3 +334,38 @@ def test_an_offer_the_rewrite_kept_is_cut_out(settings) -> None:  # type: ignore
 
     final = asyncio.run(guard.finalise(reply, ctx, same))
     assert final.text == "Kestrel. Caching is a flaw."
+
+
+def test_the_rewrite_note_names_only_the_problems_found() -> None:
+    from src.core.agent import REWRITE_NOTES, rewrite_note
+    from src.core.guards.output import Issue
+
+    note = rewrite_note([Issue("unreported_write", "regenerate")])
+    assert "Name the file you wrote." in note
+    assert "identifiers" not in note  # the old catch-all invited lists of tool fields
+    issue_names = {"raw_receipt", "closing_offer", "self_repeat", "unverified_number"}
+    assert issue_names <= set(REWRITE_NOTES)
+
+
+def test_a_write_named_by_its_workspace_name_is_grounded(settings) -> None:  # type: ignore[no-untyped-def]
+    guard = OutputGuard(settings, SecretScanner())
+    ctx = OutputContext(
+        files_written=["versions/file_2d4c317ffd2febfd/v2.md"], files_named=["notes/todo.md"]
+    )
+    reply = "Added 'book the dentist' to notes/todo.md."
+    names = [i.name for i in guard.check(reply, ctx).issues]
+    assert "unverified_file_claim" not in names and "unreported_write" not in names
+
+
+def test_an_empty_rewrite_keeps_a_draft_that_only_had_style_problems(settings) -> None:  # type: ignore[no-untyped-def]
+    import asyncio
+
+    guard = OutputGuard(settings, SecretScanner())
+    ctx = OutputContext(files_named=["outputs/expenses.csv"])
+    draft = "Done. The ledger is flat now."
+
+    async def empty(_issues: object) -> str:
+        return "   "
+
+    final = asyncio.run(guard.finalise(draft, ctx, empty))
+    assert final.text == draft

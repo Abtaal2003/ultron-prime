@@ -556,7 +556,10 @@ class OutputGuard:
                 re.I,
             ):
                 continue
-            written = {w.lower().split("/")[-1] for w in ctx.files_written}
+            # files_written holds storage paths ("versions/file_.../v2.md"); the names the
+            # operator knows are in files_named. A live append (2026-10-29) said "added to
+            # notes/todo.md" and was blocked for it.
+            written = {w.lower().split("/")[-1] for w in [*ctx.files_written, *ctx.files_named]}
             if not written:
                 issues.append(Issue("unverified_file_claim", "regenerate", sentence[:100]))
                 return
@@ -717,6 +720,17 @@ class OutputGuard:
                 )
             return FinalReply(FAIL_SAFE_UNVERIFIED, "blocked", [i.name for i in first.issues])
         retry = await regenerate([i for i in first.issues if i.severity == "regenerate"])
+        if not retry.strip():
+            # An empty rewrite was shown as an empty reply (2026-10-29). Keep the draft if its
+            # only problems were style; otherwise fail safe as for any failed rewrite.
+            if _only_style(first):
+                return FinalReply(
+                    drop_chat_offers(first.text, ctx),
+                    "pass",
+                    [i.name for i in first.issues],
+                    callback_used=first.callback_used,
+                )
+            return FinalReply(FAIL_SAFE_UNVERIFIED, "blocked", [i.name for i in first.issues], True)
         second = await self._full_check(retry, ctx, call_ctx)
         names = [i.name for i in first.issues]
         if second.blocked:

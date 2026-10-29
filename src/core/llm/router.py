@@ -165,7 +165,7 @@ class LLMRouter:
         out: list[tuple[RouteSpec, LLMProvider, ProviderCapabilities]] = []
         for route in routes:
             key = str(route)
-            if key in seen:
+            if key in seen or key in request.skip_routes:
                 continue
             seen.add(key)
             provider = self.providers.get(route.provider)

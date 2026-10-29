@@ -318,3 +318,25 @@ async def test_an_output_cap_limits_only_the_reply_budget(
         assert script.requests("main")[-1].max_tokens == 900
     finally:
         await rt.close()
+
+
+async def test_a_second_too_large_error_goes_to_a_fallback_with_its_history(
+    settings: Settings, script: RoleScript
+) -> None:
+    """2026-10-29: trimming harder dropped the history, and a file was saved with invented code."""
+    from src.core.errors import RequestTooLarge
+    from src.core.events import AgentDone
+
+    rt = await full_runtime(settings, script, fallback_chain=["fake:m", "fake:roomy"])
+    try:
+        assert rt.services.history is not None
+        script.push("guard", guard(task_type="CONVERSATION"))
+        too_big = RequestTooLarge("too large", detail="TPM: Limit 8000, Requested 8354")
+        script.push("main", Reply(error=too_big), Reply(error=too_big), Reply(text="Fine."))
+        _, events = await run(rt, await rt.services.history.create_chat("t"), "How are you?")
+        assert of_type(events, AgentDone)[-1].status == "ok"
+        requests = script.requests("main")
+        assert len(requests) == 3
+        assert requests[-1].model == "roomy"  # the primary was skipped, not trimmed again
+    finally:
+        await rt.close()

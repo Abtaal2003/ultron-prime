@@ -189,7 +189,9 @@ async def test_web_results_go_through_the_quarantined_reader(
         Reply(text="Python shipped a release."),
     )
     script.push(
-        "quarantine_reader", Reply(structured={"facts": [], "summary": "A release happened."})
+        "quarantine_reader",
+        Reply(structured={"facts": []}),  # no facts: the reader is asked for a summary instead
+        Reply(structured={"summary": "A release happened."}),
     )
     chat = await new_chat(rt)
     _, events = await run(rt, chat, "search for python release news")
@@ -345,7 +347,8 @@ async def test_output_guard_regenerates_an_invented_link_once(
     )
     assert stored is not None and "made-up-docs" not in stored["content"]
     retry = script.requests("main")[1]
-    assert "failed verification" in retry.messages[-1].text() and retry.tools == []
+    note = retry.messages[-1].text()
+    assert "needs a rewrite" in note and "Give only links" in note and retry.tools == []
 
 
 async def test_two_failed_verifications_fail_safe(rt: Runtime, script: RoleScript) -> None:
