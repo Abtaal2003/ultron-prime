@@ -6,8 +6,8 @@ The first release meant for other people to run.
 
 ### Run it yourself
 
-* **Docker image and compose file.** One command starts the API, the web terminal and a small
-  local embedding model, bound to this machine only, with data in named volumes. CI builds the
+* **Docker image and compose file.** One command starts the API, the web terminal and the local
+  embedding model, bound to this machine only, with data in named volumes. CI builds the
   image, starts it with compose, checks health, the web app, local embeddings offline and that
   data survives a restart.
 * **`ultron doctor`.** Checks keys (never printing them), which model each job will actually use,
@@ -32,7 +32,9 @@ The first release meant for other people to run.
   free tiers (30, 28, 27, 26 and 27 of 30, every failure fixed and rerun), and four long
   multi-chat sessions. See [docs/verification.md](docs/verification.md).
 * `evals/embeddings_check.py` and a manual workflow measure memory recall and calibrate repeat
-  detection on real embedding models.
+  detection on real embedding models. The default model (Qwen3-Embedding-0.6B) found every
+  related memory with no unrelated ones at the recall cut-off; the small one found under half,
+  so Docker and the free preset use the default.
 
 ### Fixed on the way
 

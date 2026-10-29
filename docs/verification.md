@@ -430,7 +430,7 @@ problems a developer machine had hidden. All fixed:
 * **No network to Hugging Face meant a 200-line traceback.** The local embedding model downloads
   on first start; when that failed the server died inside startup. The model is now fetched
   before the server starts, and a failure is one sentence naming the two alternatives
-  (`EMBEDDING_BACKEND=gemini` or `hashing`). The Docker image ships the small model.
+  (`EMBEDDING_BACKEND=gemini` or `hashing`). The Docker image ships the model.
 * **Any port but 8787 refused every sign-in** with "origin not allowed", because the allowed
   origin was fixed to the default port. Local mode now also allows its own port on loopback.
 * **The header named a main model with no key.** It now names the route that will actually
@@ -442,3 +442,24 @@ that builds and exercises them, the free-tier preset, and network isolation for 
 (its own user and network namespace on Linux, refused where unavailable). The repeat calibration
 script calibrated the hashing embedder whatever was configured; it now uses the configured one.
 A history scan of every commit found no keys, only test placeholders.
+
+#### Recall with real embedding models
+
+The vault and history use fixed cosine cut-offs, chosen on the offline hashing embedder. The
+`embeddings` workflow measured both local models on nine queries that should find one of six
+stored memories and eight that should find none
+([evals/embeddings_check.py](../evals/embeddings_check.py)):
+
+| Model | Right memory ranked first | Found at memory cut-off 0.3 | Unrelated pulled in at 0.3 | Near-duplicates caught at 0.9 |
+|:--|:--|:--|:--|:--|
+| Qwen3-Embedding-0.6B (default) | 9 of 9 | 9 of 9 | 0 of 8 | 1 of 2 |
+| all-MiniLM-L6-v2 (`local_light`) | 9 of 9 | 4 of 9 | 0 of 8 | 1 of 2 |
+
+The small model ranks correctly but scores related memories too low for the cut-off, so the
+Docker image and the free-tier preset now use the default model. Repeat-detection thresholds
+for both models were calibrated in the same run and stored in `data/calibration.json`; before
+this only the hashing embedder had them. The missed near-duplicate ("Operator rule: no deployments on
+Fridays", 0.87 against the stored rule on the default model) is under the 0.9 cut-off, so it would
+be offered as a new memory; every memory needs your approval, so the cost is one redundant
+prompt. The cut-off was left alone, because lowering it risks merging two different rules on
+the same topic.

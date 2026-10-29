@@ -3,6 +3,14 @@
     "hashing-256": {
       "auto": 0.9263,
       "judge": 0.2985
+    },
+    "local:Qwen/Qwen3-Embedding-0.6B": {
+      "auto": 0.9548,
+      "judge": 0.8077
+    },
+    "local:sentence-transformers/all-MiniLM-L6-v2": {
+      "auto": 0.9371,
+      "judge": 0.7059
     }
   }
 }

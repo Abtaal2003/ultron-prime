@@ -113,17 +113,17 @@ jobs:
       - name: Doctor runs inside the image
         run: |
           docker compose exec -T ultron ultron doctor | tee doctor.txt || true
-          grep -q "embeddings: local_light" doctor.txt
+          grep -q "embeddings: local " doctor.txt
           grep -q "no model key set" doctor.txt
       - name: Local embeddings work from the baked-in model
         run: |
           docker compose exec -T -e HF_HUB_OFFLINE=1 ultron python -c "
           import asyncio
           from src.core.memory.embeddings import LocalEmbedder
-          e = LocalEmbedder('sentence-transformers/all-MiniLM-L6-v2')
+          e = LocalEmbedder('Qwen/Qwen3-Embedding-0.6B')
           v = asyncio.run(e.embed(['pytest, never unittest', 'I test with pytest']))
           print('dimension', len(v[0]), 'similarity', round(sum(a*b for a, b in zip(*v)), 3))
-          assert len(v[0]) == 384
+          assert len(v[0]) == 1024
           "
       - name: Data survives a restart
         run: |

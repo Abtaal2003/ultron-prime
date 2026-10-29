@@ -346,7 +346,7 @@ model families.
 * **Not tested on Windows** outside Docker, on Safari, or on a real phone (only browser phone
   profiles).
 * **First start downloads an embedding model** from Hugging Face unless you use Docker (which
-  ships the small one) or `EMBEDDING_BACKEND=gemini`.
+  ships it) or `EMBEDDING_BACKEND=gemini`. The default model is about 1.2 GB.
 
 ## Documentation
 

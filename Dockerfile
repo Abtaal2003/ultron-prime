@@ -1,4 +1,4 @@
-# Ultron Prime: one image with the API, the built web app and a small local embedding model.
+# Ultron Prime: one image with the API, the built web app and a local embedding model.
 #   docker compose up -d   then   docker compose logs ultron   for the URL and the passphrase
 
 # --- web app ---------------------------------------------------------------------------------
@@ -37,17 +37,17 @@ RUN useradd --create-home --uid 10001 ultron \
  && chown -R ultron:ultron /app/data /app/workspace
 USER ultron
 
-# Bake the small embedding model in, so the first start needs no download. It lands in the data
+# Bake the default embedding model in (about 1.2 GB), so the first start needs no download. It lands in the data
 # volume's path; Docker copies it into a new named volume on first mount.
 ENV HF_HOME=/app/data/models
-RUN python -c "from huggingface_hub import snapshot_download as d; d('sentence-transformers/all-MiniLM-L6-v2')"
+RUN python -c "from huggingface_hub import snapshot_download as d; d('Qwen/Qwen3-Embedding-0.6B')"
 
 # CONTAINER: bind the published port (compose maps it to the host's loopback only).
 # SANDBOX_NETWORK=host: Docker's default seccomp profile blocks the user namespaces that
 # network isolation needs, so the container itself is the boundary for code runs.
 ENV CONTAINER=true \
     SANDBOX_NETWORK=host \
-    EMBEDDING_BACKEND=local_light \
+    EMBEDDING_BACKEND=local \
     XDG_CACHE_HOME=/tmp/cache \
     MPLCONFIGDIR=/tmp/matplotlib \
     ALLOWED_HOSTS=localhost,127.0.0.1 \
