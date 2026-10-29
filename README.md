@@ -205,30 +205,61 @@ reach the model; the egress hold is what stopped the leak. `strict` mode quarant
 
 ## Quick start
 
-You need Python 3.11+, [uv](https://docs.astral.sh/uv/), Node (current LTS) for the frontend
-build, and an API key for at least one of Anthropic, Groq or Gemini.
+You need an API key for at least one of Groq, Gemini or Anthropic. Groq and Gemini both have
+free tiers, and `.env.free.example` is already set up for them
+([Groq key](https://console.groq.com/keys), [Gemini key](https://aistudio.google.com/apikey)).
+
+**With Docker** (nothing else to install):
 
 ```bash
 git clone https://github.com/Abtaal2003/ultron-prime.git
 cd ultron-prime
-uv sync --extra embeddings --group dev   # the local embedding model is a large download
-cp .env.example .env                     # add at least one provider key
-(cd web && npm ci && npm run build)
-uv run ultron                            # prints a URL and a one-time passphrase
+cp .env.free.example .env        # paste your keys into .env
+docker compose up -d --build     # the first build takes a few minutes
+docker compose logs ultron       # shows a one-time passphrase
 ```
 
-Open the URL, enter the passphrase, and start a chat. Everything runs on your machine; only model
-calls, web searches and network diagnostics leave it.
+Open <http://localhost:8787> and sign in with the passphrase. The port is bound to this machine
+only. Your chats, memories and files live in two Docker volumes and survive restarts and
+rebuilds.
+
+**Without Docker** (Python 3.11+, [uv](https://docs.astral.sh/uv/) and Node LTS):
+
+```bash
+git clone https://github.com/Abtaal2003/ultron-prime.git
+cd ultron-prime
+uv sync --extra embeddings       # includes a local embedding model (a large download)
+cp .env.free.example .env        # paste your keys into .env
+(cd web && npm ci && npm run build)
+uv run ultron                    # prints the URL and a one-time passphrase
+```
+
+**If something is off,** run `ultron doctor` (`docker compose exec ultron ultron doctor` with
+Docker). It checks your keys, which model each job will actually use, the folders, the
+embedding model and the code sandbox, and says how to fix anything it finds. Add `--live` to
+send one tiny request through each model, which catches a wrong model name or a used-up quota.
+
+Everything runs on your machine. Only model calls, web searches and network checks leave it.
 
 <details>
 <summary><b>More setup notes</b></summary>
 <br>
 
-* **Development:** `just dev` runs the API with reload and the Vite dev server together.
+* **Free tiers:** with the preset, expect a few dozen turns a day before Groq's daily token limit
+  (it refills over a rolling 24 hours). Groq rejects any single request over 8,000 tokens, so
+  `MAX_REQUEST_TOKENS=8000` trims long chats to fit, and older turns drop out sooner than on a
+  paid model. Gemini's free tier allows only a few requests per model per day, so it is kept for
+  images and as a fallback.
+* **Code sandbox:** Python runs in a subprocess with time, memory and output limits. On Linux it
+  also gets its own network namespace with no network at all (`SANDBOX_NETWORK=isolated`, the
+  default). Where that isn't available (macOS, Windows, some locked-down Linux hosts) the sandbox
+  refuses to run until you either use Docker or set `SANDBOX_NETWORK=host`; with `host`, code
+  shares your network, so runs after Ultron has read outside content need your approval.
+  The Docker image uses `host`, because the container is the boundary.
 * **Phone access:** set `ACCESS_MODE=tailnet` (or `lan` with TLS) and add the host to
   `ALLOWED_HOSTS` and `ALLOWED_ORIGINS`. Never expose it to the public internet.
-* **Free tiers:** on Groq's free tier set `MAX_REQUEST_TOKENS=8000` (its per-request cap, reply
-  allowance included) and `LLM_MAX_WAIT_S=60` (its limits count tokens per rolling minute).
+* **Development:** `uv sync --all-extras --group dev`, then `just dev` runs the API with reload
+  and the Vite dev server together. `just test` runs every check CI runs.
 * **Live tool check:** `uv run python -m evals.live_tools` sends 30 messages that use every tool
   through the real pipeline and scores each one; keys come from the environment, and results
   go to `data/evals/live-tools-<date>.md`.

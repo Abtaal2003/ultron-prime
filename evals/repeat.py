@@ -220,12 +220,22 @@ def write(calibration: Calibration, path: Path = CALIBRATION_PATH) -> None:
 
 
 def main() -> None:
-    """CLI: calibrate the default (hashing) embedder, print the result, optionally write it."""
+    """CLI: calibrate an embedder (the configured one by default), optionally write it."""
+    from src.config import get_settings
+    from src.core.memory.embeddings import build_embedder
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--write", action="store_true", help="merge into data/calibration.json")
     parser.add_argument("--fp-target", type=float, default=DEFAULT_FP_TARGET)
+    parser.add_argument("--backend", help="EMBEDDING_BACKEND to calibrate (default: configured)")
     args = parser.parse_args()
-    result = asyncio.run(calibrate(HashingEmbedder(), args.fp_target))
+    settings = get_settings()
+    if args.backend:
+        settings = settings.model_copy(update={"embedding_backend": args.backend})
+    embedder = (
+        HashingEmbedder() if settings.embedding_backend == "hashing" else build_embedder(settings)
+    )
+    result = asyncio.run(calibrate(embedder, args.fp_target))
     print(json.dumps(result.to_dict(), indent=2))
     if args.write:
         write(result)
