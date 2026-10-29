@@ -21,6 +21,18 @@ jobs:
       - run: uv sync --extra embeddings
       - name: Recall and calibration for ${{ matrix.backend }}
         run: uv run python -m evals.embeddings_check --backend ${{ matrix.backend }} --write | tee result.json
+      - name: Summary as annotations (readable through the REST API)
+        run: |
+          python3 - <<'PY'
+          import json
+          d = json.load(open("result.json"))
+          r, c = d["recall"], d["repeat"]
+          print("::notice title=recall " + r["embedder"] + "::" + json.dumps(
+              {k: r[k] for k in ("related_top1", "by_cutoff", "duplicates_caught")}))
+          print("::notice title=scores " + r["embedder"] + "::" + json.dumps(
+              {k: r[k] for k in ("related_scores", "unrelated_max", "duplicate_scores")}))
+          print("::notice title=repeat " + r["embedder"] + "::" + json.dumps(c))
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: embeddings-${{ matrix.backend }}

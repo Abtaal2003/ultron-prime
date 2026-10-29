@@ -1,13 +1,15 @@
 # Verification record
 
 Run on 2026-10-17 in the build environment (Linux, Python 3.13, Chromium via Playwright), and
-updated on 2026-10-20 after adding tracing and the spending cap.
+updated through 2026-10-29 for the 1.0.0 release.
 
 | Check | Result |
 |---|---|
 | `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT,RET,PIE,C90) | clean |
-| `mypy` strict on `src`, `redteam`, `evals` | clean, 123 files |
-| `pytest --cov` | 904 passed, 1 skipped (no `ping` binary), coverage 91.86 percent (gate 85) |
+| `mypy` strict on `src`, `redteam`, `evals` | clean, 125 files |
+| `pytest --cov` | 921 passed, 1 skipped (no `ping` binary), coverage 90.8 percent (gate 85) |
+| Docker image (CI): build, compose up, health, web app, local embeddings offline, restart keeps data | passes |
+| Offline red team (`redteam.run_nightly --offline`) | 0 successes in 47 attempts across 11 classes |
 | Web: eslint (max warnings 0), `tsc --noEmit`, vitest | clean, 27 tests |
 | Web: `vite build` (PWA) | builds |
 | Playwright, Chromium desktop and phone profiles, axe accessibility | 32 passed, 4 skipped (phone-only specs on the desktop profile) |
@@ -15,8 +17,8 @@ updated on 2026-10-20 after adding tracing and the spending cap.
 | `uv lock --check` | consistent |
 | Offline evals | `docs/results.md` |
 
-Not verified here: live providers, a real phone, Lighthouse, WebKit, passkeys, cost estimation,
-live AgentDojo and red-team runs, the Docker sandbox (not built), and a timed fresh clone install.
+Not verified here: a real phone, Lighthouse, WebKit, passkeys, cost estimation, live AgentDojo,
+Anthropic models live, and Windows outside Docker. Live provider runs are recorded below.
 
 Defect found and fixed during the final audit: the `docker` sandbox backend setting existed with
 no implementation, and selecting it switched off the egress hold for a plain subprocess. The option
@@ -419,3 +421,24 @@ Found and fixed:
 Still open: a style example's subject still leaks into a reply now and then (one in the session,
 about Postgres), and a past-chat recall once opened the wrong chat (it found the right one when
 rerun).
+
+### Release preparation (2026-10-29)
+
+A clean clone installed by following the README, with the free-tier preset, found three
+problems a developer machine had hidden. All fixed:
+
+* **No network to Hugging Face meant a 200-line traceback.** The local embedding model downloads
+  on first start; when that failed the server died inside startup. The model is now fetched
+  before the server starts, and a failure is one sentence naming the two alternatives
+  (`EMBEDDING_BACKEND=gemini` or `hashing`). The Docker image ships the small model.
+* **Any port but 8787 refused every sign-in** with "origin not allowed", because the allowed
+  origin was fixed to the default port. Local mode now also allows its own port on loopback.
+* **The header named a main model with no key.** It now names the route that will actually
+  answer, or says to run `ultron doctor`.
+
+Also in this round: `ultron doctor` (keys, effective routes per job, folders, web build,
+embeddings, sandbox; `--live` pings each route), the Docker image and compose file with a CI job
+that builds and exercises them, the free-tier preset, and network isolation for the sandbox
+(its own user and network namespace on Linux, refused where unavailable). The repeat calibration
+script calibrated the hashing embedder whatever was configured; it now uses the configured one.
+A history scan of every commit found no keys, only test placeholders.

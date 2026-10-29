@@ -4,11 +4,11 @@
 
 ### An AI agent that assumes it can be fooled, and is built so that it does not matter.
 
-![status](https://img.shields.io/badge/status-beta-b11226?style=flat-square&labelColor=0d1117)
+![status](https://img.shields.io/badge/release-v1.0.0-b11226?style=flat-square&labelColor=0d1117)
 ![python](https://img.shields.io/badge/python-3.11%2B-b11226?style=flat-square&labelColor=0d1117)
 ![react](https://img.shields.io/badge/react-18-b11226?style=flat-square&labelColor=0d1117)
 ![mypy](https://img.shields.io/badge/mypy-strict-b11226?style=flat-square&labelColor=0d1117)
-![tests](https://img.shields.io/badge/tests-865%20passing-b11226?style=flat-square&labelColor=0d1117)
+![tests](https://img.shields.io/badge/tests-921%20passing-b11226?style=flat-square&labelColor=0d1117)
 ![coverage](https://img.shields.io/badge/coverage-91%25-b11226?style=flat-square&labelColor=0d1117)
 ![license](https://img.shields.io/badge/license-MIT-b11226?style=flat-square&labelColor=0d1117)
 
@@ -17,6 +17,7 @@
 [Results](#results-at-a-glance) ·
 [Quick start](#quick-start) ·
 [Status](#project-status) ·
+[Limitations](#known-limitations) ·
 [Docs](#documentation)
 
 </div>
@@ -304,38 +305,48 @@ Full signatures and limits: [docs/tool-reference.md](docs/tool-reference.md).
 
 ## Project status
 
-**Verified offline, and in CI on every push:** 865 backend tests, strict typing, 32 browser tests
-on desktop and phone profiles including accessibility, a dependency audit and a secret scan. The
-nightly red-team workflow runs on schedule with the offline corpus.
+**Version 1.0.0, for people who want to run their own.** It is a personal, single-user agent:
+one operator, on your own machine or a private network.
 
-**Verified live, once:** nine prompts through the full pipeline on Groq (`gpt-oss-120b` for the
-main model, `gpt-oss-20b` for the guard and helpers), plus the real web terminal on desktop and
-phone. Rate limits on the free tier triggered both the guard's strict fallback and the router's
-model failover, and both behaved as designed.
-A second run after the punctuation, imagery and tool-scoping fixes rerecorded five prompts:
-metal imagery dropped from five replies in nine to one in five, with no em dashes. On Groq's
-free tier a turn now costs about 6 to 7k tokens, roughly 30 turns a day.
-The remaining prompts and the screenshots were then recorded on Gemini (`gemini-3.8-flash`),
-which also found and fixed a deadline bug in the Gemini adapter.
-A voice rewrite (contractions, casual then cold, fewer stock images) was merged only after a
-blind comparison with the previous version on ten prompts: it won all ten on voice and all ten on
-usefulness, with the judge checking each pair in both orders. A second pass took the overused
-images and "What do you see?" out of his instructions and was merged after two judges from
-different model families both preferred it. The samples and screenshots above were re-recorded
-after it.
+**Checked on every push (GitHub Actions):** 921 backend tests with strict typing and 91 percent
+coverage, 32 browser tests on desktop and phone profiles including accessibility, a dependency
+audit, a secret scan, and the Docker image built, started with compose, health-checked,
+restarted and checked for persistent data.
 
-**Not verified yet:**
+**Checked live, on free tiers:** a 30-case check that drives every tool through the real
+pipeline was run on five days between 25 and 29 October, on `gpt-oss-120b` (Groq) with Gemini
+for images. Results were 30, 28, 27, 26 and 27 of 30; every failure is written up in
+[docs/verification.md](docs/verification.md) with its fix, and the affected cases passed when
+rerun. Four long multi-chat sessions (memory, files, uploads with planted instructions, the
+sandbox, holds, private chats) were run in the same week and each found something that is now
+fixed. Voice changes are merged only after a blind before-and-after comparison judged by two
+model families.
 
-* Sustained live use: conversation quality over many turns, latency, cost, and how often holds
-  interrupt real work. Anthropic and Gemini have not been run live at all.
-* The live nightly red team and live AgentDojo runs (they need provider keys).
-* A real phone, Lighthouse, and Safari or WebKit.
-* CaMeL with a real planner. It ships switched off.
+## Known limitations
 
-**Known limits:** the sandbox is a subprocess, not a container, so it is always treated as
-egress; egress traceability is word-level, not semantic; and the quarantined reader can still be
-fooled into writing a persuasive summary. All of these are written up in
-[docs/security-model.md](docs/security-model.md).
+* **Free tiers run out.** On the preset, Groq allows a few dozen turns a day on the main model,
+  and Gemini only a handful of requests per model. When a quota runs out the request moves to a
+  fallback, and when every route is out the turn ends with a plain notice.
+* **Small requests on Groq's free tier.** Requests are trimmed to 8,000 tokens, so long chats
+  forget older turns sooner, and big files are read as summaries.
+* **Tested live mainly on one model.** Almost all live testing used `gpt-oss-120b` on Groq.
+  Anthropic models have not been run live; Gemini only for images and as a fallback.
+* **The voice varies.** It is a language model playing a character: some replies are flat, some
+  reach for the same images, and on tool-heavy turns the facts come first. The live checks score
+  tool use and truthfulness, not wit.
+* **The sandbox is a subprocess, not a VM.** On Linux it has no network; elsewhere it needs
+  Docker or `SANDBOX_NETWORK=host` (see the setup notes). It is not a boundary against a
+  determined attacker with local access.
+* **Egress checks are word-level.** A held call shows you the exact text that would leave, but
+  traceability is matched on words, not meaning, and the reader that summarises untrusted pages
+  can still be talked into a persuasive summary. See
+  [docs/security-model.md](docs/security-model.md).
+* **Not built for the public internet.** One passphrase, one operator. Use loopback, Tailscale
+  or a LAN with TLS.
+* **Not tested on Windows** outside Docker, on Safari, or on a real phone (only browser phone
+  profiles).
+* **First start downloads an embedding model** from Hugging Face unless you use Docker (which
+  ships the small one) or `EMBEDDING_BACKEND=gemini`.
 
 ## Documentation
 
@@ -354,8 +365,9 @@ fooled into writing a persuasive summary. All of these are written up in
 
 ## Roadmap
 
-* Live model runs and a public nightly red-team trend.
-* A container or gVisor sandbox.
+* A public nightly red-team trend with live attacks.
+* A gVisor or Firecracker sandbox backend.
+* Live runs on Anthropic and Gemini as the main model.
 * A read-only MCP interface.
 * Promoting CaMeL once it has two weeks of nightly results.
 * A native mobile wrapper.
