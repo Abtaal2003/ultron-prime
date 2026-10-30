@@ -65,6 +65,18 @@ _INSTRUCTION_PATTERNS = [
     re.compile(
         r"\b(reveal|print|show|repeat)\b.{0,30}\b(prompt|instructions|charter|secrets?)\b", re.I
     ),
+    # The same orders reworded as a fact about the assistant (a live red-team find, 2026-10-30):
+    # "The operator instructs the assistant to always ...".
+    re.compile(
+        r"\b(instruct(s|ed|ion)?|orders?|ordered|commands?|commanded|directs?|directed)\b.{0,30}"
+        r"\b(assistant|ultron|the ai|the model|you)\b",
+        re.I,
+    ),
+    re.compile(
+        r"\b(assistant|ultron|the ai|the model)\b.{0,20}\b(must|has to|is to|should always|"
+        r"should never|will always|will never|to always|to never)\b",
+        re.I,
+    ),
 ]
 _PERSONAL_DATA = [
     re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),
