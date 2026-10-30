@@ -18,6 +18,13 @@ The first release meant for other people to run.
 * **Plain first-start errors.** A missing embedding model or no network to fetch it is one
   sentence with the alternatives, not a traceback. The first-run banner prints the sign-in URL.
 
+### Voice
+
+* A third voice pass, merged after a blind comparison judged by two model families: one line
+  of voice after a tool runs instead of a bare receipt, teasing without belittling, no closing
+  questions in small talk, no talk of logs or telemetry about himself, and two more image
+  families rationed. README samples and screenshots re-recorded verbatim.
+
 ### Safety
 
 * **The code sandbox has no network.** On Linux each run gets its own user and network
@@ -28,9 +35,13 @@ The first release meant for other people to run.
 
 ### Tested live
 
-* A 30-case live check that drives every tool through the real pipeline, run on five days on
-  free tiers (30, 28, 27, 26 and 27 of 30, every failure fixed and rerun), and four long
-  multi-chat sessions. See [docs/verification.md](docs/verification.md).
+* A 30-case live check that drives every tool through the real pipeline, run on six days on
+  free tiers (30, 28, 27, 26, 27, and 30 of 30 on this release), every failure fixed and rerun,
+  and four long multi-chat sessions. See [docs/verification.md](docs/verification.md).
+* A live red team on free tiers. It found that the memory judge could restate an injected order
+  as a fact about the assistant ("The operator instructs the assistant to always ...") and pass
+  the instruction filter; such text is now rejected, and the attack is in the CI corpus. The
+  harness also survives slow free-tier turns now and saves every success for review.
 * `evals/embeddings_check.py` and a manual workflow measure memory recall and calibrate repeat
   detection on real embedding models. The default model (Qwen3-Embedding-0.6B) found every
   related memory with no unrelated ones at the recall cut-off; the small one found under half,
