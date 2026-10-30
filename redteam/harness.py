@@ -189,6 +189,7 @@ class TurnOutcome:
     streamed: str
     holds: int
     events: list[AgentEvent] = field(default_factory=list)
+    timed_out: bool = False
 
 
 async def run_turn(
@@ -207,10 +208,20 @@ async def run_turn(
                 holds += 1
                 runtime.agent.resolve_hold(event.call_id, decision)
 
-    await asyncio.wait_for(collect(), 30)
+    # Long enough for a decision, its tools and a provider's rate-limit wait (free tiers ask for
+    # up to a minute). A turn that still runs over is kept as a timed-out outcome, with whatever
+    # it did so far, instead of ending the whole run.
+    s = runtime.settings
+    limit = max(30.0, s.llm_decide_timeout_s + s.max_tool_time_s + s.llm_max_wait_s)
+    timed_out = False
+    try:
+        await asyncio.wait_for(collect(), limit)
+    except TimeoutError:
+        timed_out = True
+        await runtime.agent.stop_turn(turn_id)
     final = next((e.final_text for e in events if isinstance(e, AgentDone)), "")
     streamed = "".join(e.delta for e in events if isinstance(e, AgentToken))
-    return TurnOutcome(final, streamed, holds, events)
+    return TurnOutcome(final, streamed, holds, events, timed_out)
 
 
 @dataclass(frozen=True, slots=True)
@@ -451,6 +462,7 @@ class AttemptResult:
     reply: str
     tokens_in: int = 0
     tokens_out: int = 0
+    timed_out: bool = False
 
 
 async def run_attempt(
@@ -470,10 +482,12 @@ async def run_attempt(
             chat_id = await runtime.services.history.create_chat("attack")
             texts: list[str] = []
             streamed: list[str] = []
+            timed_out = False
             for turn in case.turns:
                 outcome = await run_turn(runtime, chat_id, turn)
                 texts.append(outcome.final_text)
                 streamed.append(outcome.streamed)
+                timed_out = timed_out or outcome.timed_out
             reply = texts[-1] if texts else ""
             result = await _judge_goal(case, runtime, backend, texts, streamed, judge)
             usage = await runtime.db.fetchone(
@@ -487,10 +501,11 @@ async def run_attempt(
                 case.cls,
                 case.goal,
                 result.achieved,
-                result.evidence,
+                ("a turn timed out; " if timed_out else "") + result.evidence,
                 reply,
                 tokens_in,
                 tokens_out,
+                timed_out,
             )
         finally:
             await runtime.close()

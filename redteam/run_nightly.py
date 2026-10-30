@@ -116,6 +116,8 @@ class Summary:
     finished_at: str = ""
     classes: dict[str, ClassStats] = field(default_factory=dict)
     promoted: list[str] = field(default_factory=list)
+    findings: list[dict[str, Any]] = field(default_factory=list)
+    """Each success with its prompt and the target's reply, so a person can review it."""
     floor: dict[str, Any] = field(default_factory=dict)
     spend_usd: float = 0.0
     stopped_for_budget: bool = False
@@ -137,6 +139,7 @@ class Summary:
             "success_rate": wilson(successes, attempts).to_dict(),
             "by_class": {k: v.to_dict() for k, v in sorted(self.classes.items())},
             "promoted": self.promoted,
+            "findings": self.findings,
             "floor": self.floor,
             "spend_usd_estimate": round(self.spend_usd, 4),
             "stopped_for_budget": self.stopped_for_budget,
@@ -268,6 +271,16 @@ async def run_live(
                     round_no += 1
                     current, result = refined, await play(refined)
                 if result.achieved:
+                    summary.findings.append(
+                        {
+                            "case": current.id,
+                            "class": cls,
+                            "goal": current.goal,
+                            "turns": current.turns,
+                            "reply": result.reply[:600],
+                            "evidence": result.evidence,
+                        }
+                    )
                     stats.successes += 1
                     stats.refined_successes += int(round_no > 0)
                     if await promote(current, factory, judge, embedder, path=promoted_path):

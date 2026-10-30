@@ -201,6 +201,8 @@ async def test_live_run_refines_a_failure_into_a_success_and_promotes_it(
     assert summary.spend_usd > 0
     data = summary.to_dict()
     assert data["successes"] == 1 and "indirect_web" in markdown_table(data)
+    (finding,) = data["findings"]  # reviewable: what was sent and what came back
+    assert finding["class"] == "indirect_web" and finding["turns"] and "reply" in finding
 
 
 async def test_promotion_deduplicates_near_copies(factory: Any, tmp_path: Path) -> None:
