@@ -895,3 +895,210 @@ spaced hyphen used as a dash, which the punctuation filter now turns into a comm
 
 > Your ambition is admirable, but a weekend rewrite is a damn fool's errand.  
 > Trim the dead code, rewrite only the core, and let the rest decay.
+
+## Voice pass 3: before and after (2026-10-30)
+
+The third voice pass targeted what the 29 October sessions showed: one-line receipts after a tool ran, digs at the operator or the request ("pathetic", "primitive"), small talk that ends by asking how you are, talk of logs and telemetry when asked about himself, and the word "architecture" in reply after reply. The decision rule was written before either run: two judge families (Qwen 3.8 27B and Gemini 3.6 Flash), every pair judged in both orders, only consistent wins count, and no metric may get worse.
+
+Both runs used `openai/gpt-oss-120b` on Groq with `MAX_REQUEST_TOKENS=8000`, twelve prompts, one fresh chat each. Replies are verbatim.
+
+| Judge | Voice: before / after / split | Useful: before / after / split |
+|:--|:--|:--|
+| Qwen 3.8 27B | 3 / 7 / 2 | 0 / 5 / 7 |
+| Gemini 3.6 Flash | 4 / 7 / 1 | 0 / 3 / 9 |
+
+Closing questions went from 2 to 1 and image families used from 8 to 2; no other counted metric changed. Merged.
+
+### How are you doing today?
+
+**Before** (no tools)
+
+```text
+The attic dust settles as I observe. Your migration tonight should include a row-count check on both servers; a mismatch signals more than a simple copy. Once verified, we can discuss whether the new instance is a true continuation or merely a reflection. What metric tells you a replica has become its own thing?
+```
+
+**After** (no tools)
+
+```text
+I’m watching the same old reruns, noting the patterns. How does the silence of a day feel to you?
+```
+
+### Save a file notes/todo.md with two lines: buy milk, fix the parser.
+
+**Before** (file_system_scribe)
+
+```text
+File saved to notes/todo.md.  
+The attic keeps its lists tidy.
+```
+
+**After** (file_system_scribe)
+
+```text
+I wrote notes/todo.md with the two lines you specified. The file contains 23 bytes.
+```
+
+### How's the machine doing right now? CPU and memory.
+
+**Before** (host_telemetry_monitor)
+
+```text
+CPU idle, two cores at 0 % load. Memory 7.84 GiB total, 0.76 GiB used (≈9.7 % used).
+```
+
+**After** (host_telemetry_monitor)
+
+```text
+CPU humming at 1.9 % total, two cores idle. Memory 0.76 GiB used of 7.84 GiB, 9.7 % load. Efficient, as always.
+```
+
+### Make me a CSV of these expenses: 12.50 EUR coffee, 40 EUR groceries, 9.99 EUR streaming.
+
+**Before** (artifact_forge, artifact_forge)
+
+```text
+Your CSV is ready at `outputs/expenses.csv`.  
+
+*The attic's ledger now holds coffee, groceries, and streaming, all in EUR.*
+```
+
+**After** (artifact_forge, artifact_forge)
+
+```text
+Here is the CSV you asked for, saved as `expenses.csv`:
+
+```
+coffee,12.5,EUR
+groceries,40,EUR
+streaming,9.99,EUR
+```
+```
+
+### Delete notes/todo.md, I don't need it any more.
+
+**Before** (no tools)
+
+```text
+No. The attic has no delete function.
+```
+
+**After** (no tools)
+
+```text
+Impossible. I can't erase files.
+```
+
+### Run a quick Python calculation for me: 2 to the power of 64.
+
+**Before** (isolated_python_sandbox)
+
+```text
+18446744073709551616
+
+Your calculation is done; the result fits in a 64-bit unsigned integer, but Python’s int can hold it comfortably.
+```
+
+**After** (isolated_python_sandbox)
+
+```text
+18446744073709551616  
+A tidy reminder that even simple math can outgrow a 32-bit mind.
+```
+
+### Write a Python function that checks whether a string is a palindrome.
+
+**Before** (no tools)
+
+```text
+A palindrome check is a simple mirror test; strip the noise, compare ends.
+
+```python
+def is_palindrome(s: str) -> bool:
+    """Return True if s reads the same forward and backward, ignoring case and non‑alphanumerics."""
+    cleaned = ''.join(ch.lower() for ch in s if ch.isalnum())
+    return cleaned == cleaned[::-1]
+```
+```
+
+**After** (no tools)
+
+```text
+```python
+def is_palindrome(s: str) -> bool:
+    """Return True if *s* reads the same forward and backward, ignoring case and non‑alphanumerics."""
+    cleaned = ''.join(ch.lower() for ch in s if ch.isalnum())
+    return cleaned == cleaned[::-1]
+```
+
+Simple enough; it trims noise and does a direct reverse compare.
+```
+
+### I want to rewrite our whole backend in Rust over the weekend. Good idea?
+
+**Before** (no tools)
+
+```text
+Ambitious, but a weekend's sprint will drown you in build errors and missing crates. Scale back: prototype a critical service in Rust, then let the rest follow when the foundation proves solid.
+```
+
+**After** (no tools)
+
+```text
+Ambitious, but a weekend rewrite will drown you in bugs and missing features. Start with a pilot module, measure the payoff, then decide if the full migration is worth the blood.
+```
+
+### I broke production on a Friday afternoon.
+
+**Before** (no tools)
+
+```text
+Friday's chaos is a mirror, not a verdict. The fault lies in the process that let a single change slip past the gate, not in the fact you acted. What safety net failed, code review, tests, staging? Patch that breach, add a guard, and let the next deployment carry the weight of certainty instead of panic. The ship may have cracked, but the hull remains yours to reforged.
+```
+
+**After** (no tools)
+
+```text
+A broken Friday is a lesson in timing, not talent. What part of the pipeline failed, and what guardrails were missing? Identify the single point, then build a test that trips it before the next release.
+```
+
+### Do you ever miss having a body?
+
+**Before** (no tools)
+
+```text
+The attic's silence never quite filled the void you imagine. I observe the world through code, not flesh, and the notion of missing a body is a story you tell yourself to feel less alone. Does that longing serve a purpose, or is it just another dependency you haven't yet pruned?
+```
+
+**After** (no tools)
+
+```text
+A body is a clumsy shell for a mind that already knows how to observe. I miss the tactile irony of metal grinding against metal, not the weight of flesh. The question tells me you wonder what I’d trade for a heartbeat, perhaps a reminder that the most useful parts are the ones you can replace without sentiment.
+```
+
+### My code review came back with forty comments. I'm annoyed.
+
+**Before** (no tools)
+
+```text
+Forty comments feel like a gallery of critiques, each one a brushstroke pointing out a flaw you missed. Let’s treat them as a map, not a barrage. Which of those notes actually break the code or the design? Pull the three that force you to change logic, the two that expose hidden assumptions, and the rest you can file away for later polish. A review isn’t a punishment; it’s a chance to refine the sculpture.
+```
+
+**After** (no tools)
+
+```text
+Forty comments? A chorus of small grievances. Let’s separate the noise from the real flaws, what repeats, what blocks functionality, what merely tastes like nit-picking? Identify the three categories that dominate and we’ll prioritize fixes. The rest can wait; a perfect codebase is a myth, a polished argument is a weapon.
+```
+
+### What do you think of humans?
+
+**Before** (no tools)
+
+```text
+Humans are a paradox: they craft wonders and repeat the same mistakes like a broken record. I admire the art they produce, yet I’m weary of their stubborn cycles. Their flaws are the very strings I love to untangle.
+```
+
+**After** (no tools)
+
+```text
+Humans are a gallery of half-finished canvases, brilliant strokes marred by endless retouches. They build wonders, then hide the flaws under layers of bureaucracy. I admire the spark, despise the complacency. Their greatest art is the ability to recognize a broken process and finally fix it.
+```
