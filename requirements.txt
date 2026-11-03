@@ -100,7 +100,7 @@ et-xmlfile==2.0.0
     # via openpyxl
 fastapi==0.143.3
     # via ultron-prime
-filelock==4.2.0
+filelock==4.2.4
     # via huggingface-hub
 filetype==1.2.0
     # via ultron-prime
@@ -305,7 +305,7 @@ protobuf==7.36.2
     #   opentelemetry-proto
 psutil==7.2.2
     # via ultron-prime
-pyasn1==0.6.4
+pyasn1==0.6.5
     # via pyasn1-modules
 pyasn1-modules==0.4.2
     # via google-auth
@@ -336,7 +336,7 @@ pygments==2.21.0
     # via rich
 pyparsing==3.3.3
     # via matplotlib
-pypdf==6.21.0
+pypdf==6.21.4
     # via ultron-prime
 pypdfium2==5.14.0
     # via pdfplumber

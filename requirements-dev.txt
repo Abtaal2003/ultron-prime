@@ -117,7 +117,7 @@ et-xmlfile==2.0.0
     # via openpyxl
 fastapi==0.143.3
     # via ultron-prime
-filelock==4.2.0
+filelock==4.2.4
     # via
     #   cachecontrol
     #   huggingface-hub
@@ -368,7 +368,7 @@ psutil==7.2.2
     # via ultron-prime
 py-serializable==2.1.0
     # via cyclonedx-python-lib
-pyasn1==0.6.4
+pyasn1==0.6.5
     # via pyasn1-modules
 pyasn1-modules==0.4.2
     # via google-auth
@@ -403,7 +403,7 @@ pyparsing==3.3.3
     # via
     #   matplotlib
     #   pip-requirements-parser
-pypdf==6.21.0
+pypdf==6.21.4
     # via ultron-prime
 pypdfium2==5.14.0
     # via pdfplumber
@@ -574,7 +574,7 @@ uvicorn==0.54.0
     #   ultron-prime
 uvloop==0.23.0 ; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'
     # via uvicorn
-virtualenv==21.14.8
+virtualenv==21.14.12
     # via pre-commit
 watchfiles==1.3.0
     # via uvicorn
