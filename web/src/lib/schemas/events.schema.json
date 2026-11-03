@@ -1194,6 +1194,11 @@
       "additionalProperties": false,
       "description": "The router moved to another provider or model.",
       "properties": {
+        "cause": {
+          "default": "",
+          "title": "Cause",
+          "type": "string"
+        },
         "chat_id": {
           "anyOf": [
             {
@@ -1272,6 +1277,7 @@
         "from_route",
         "to_route",
         "reason",
+        "cause",
         "thinking_stripped",
         "themed_line"
       ],

@@ -66,6 +66,7 @@ from src.core.events import (
     GuardVerdict,
     MemoryRetrieved,
     OutputVerdict,
+    ProviderFailover,
     RepeatDetected,
     SystemNotice,
     ToolEnd,
@@ -192,6 +193,10 @@ ROOMY_REPLY_TOKENS = 3000
 EMPTY_REPLY_TEXT = (
     "I came back with nothing on that one, which isn't like me. Ask again, and if it was a big "
     "request, ask for it in smaller pieces."
+)
+QUOTA_EMPTY_TEXT = (
+    "I came back with nothing, because the models I lean on are rationed right now: their rate "
+    "limits were hit on the way. Ask again in a few minutes."
 )
 
 
@@ -509,6 +514,8 @@ class UltronAgent:
         return self._turns[state["turn_id"]]
 
     async def _emit(self, turn: Turn, event: AgentEvent) -> None:
+        if isinstance(event, ProviderFailover) and event.cause == "rate_limit":
+            turn.rate_limited = True
         await self.bus.publish(
             event.model_copy(update={"turn_id": turn.turn_id, "chat_id": turn.chat_id})
         )
@@ -1690,8 +1697,9 @@ class UltronAgent:
         assert scope is not None
         reply = turn.streamed_text.strip()
         if not reply:
-            # The "tool_error" status line said an error was reported when none was.
-            reply = EMPTY_REPLY_TEXT
+            # The "tool_error" status line said an error was reported when none was. When the
+            # turn ran into rate limits, say so: "ask in smaller pieces" would be wrong advice.
+            reply = QUOTA_EMPTY_TEXT if turn.rate_limited else EMPTY_REPLY_TEXT
         ctx = self._output_ctx(turn)
         rows = await self.history.db.fetchall(
             "SELECT content FROM messages WHERE chat_id=? AND role='assistant'", (turn.chat_id,)

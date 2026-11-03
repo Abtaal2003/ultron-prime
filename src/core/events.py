@@ -240,6 +240,8 @@ class ProviderFailover(BaseEvent):
     from_route: str
     to_route: str
     reason: str
+    cause: str = ""
+    """The error kind that caused it, e.g. ``rate_limit`` or ``unavailable``."""
     thinking_stripped: bool = False
     themed_line: str | None = None
 

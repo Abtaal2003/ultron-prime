@@ -207,6 +207,7 @@ export type Status2 = "pass" | "regenerated" | "blocked";
 export type Ts18 = string;
 export type TurnId18 = string | null;
 export type Type18 = "OutputVerdict";
+export type Cause = string;
 export type ChatId19 = string | null;
 export type FromRoute = string;
 export type Reason2 = string;
@@ -532,6 +533,7 @@ export interface OutputVerdict {
  * The router moved to another provider or model.
  */
 export interface ProviderFailover {
+  cause: Cause;
   chat_id: ChatId19;
   from_route: FromRoute;
   reason: Reason2;

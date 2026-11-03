@@ -241,7 +241,13 @@ class LLMRouter:
         return exc.retry_after_s is not None and exc.retry_after_s > self.settings.llm_max_wait_s
 
     async def _announce(
-        self, ctx: CallContext, prev: str, nxt: str, reason: str, stripped: bool
+        self,
+        ctx: CallContext,
+        prev: str,
+        nxt: str,
+        reason: str,
+        stripped: bool,
+        cause: Exception | None = None,
     ) -> None:
         ctx.notes.append(f"{prev} -> {nxt}: {reason}")
         if ctx.emit is not None:
@@ -252,6 +258,7 @@ class LLMRouter:
                     from_route=prev,
                     to_route=nxt,
                     reason=reason,
+                    cause=str(getattr(cause, "kind", "") or ""),
                     thinking_stripped=stripped,
                     themed_line=THEMED["provider_failover"],
                 )
@@ -329,7 +336,7 @@ class LLMRouter:
             prepared, foreign = self._prepare(request, role, route, caps)
             if previous:
                 await self._announce(
-                    ctx, previous, str(route), last.message if last else "", foreign
+                    ctx, previous, str(route), last.message if last else "", foreign, last
                 )
             started = time.perf_counter()
             with tracing.span(f"chat {route.model}", self._span_attrs(role, route, ctx)) as sp:
@@ -363,7 +370,7 @@ class LLMRouter:
             prepared, foreign = self._prepare(request, role, route, caps)
             if previous:
                 await self._announce(
-                    ctx, previous, str(route), last.message if last else "", foreign
+                    ctx, previous, str(route), last.message if last else "", foreign, last
                 )
             started = time.perf_counter()
             delivered = False
@@ -431,7 +438,7 @@ class LLMRouter:
         for route, provider, caps in candidates:
             prepared, foreign = self._prepare(request, role, route, caps)
             if previous:
-                await self._announce(ctx, previous, str(route), str(last), foreign)
+                await self._announce(ctx, previous, str(route), str(last), foreign, last)
             started = time.perf_counter()
             with tracing.span(f"chat {route.model}", self._span_attrs(role, route, ctx)) as sp:
                 try:

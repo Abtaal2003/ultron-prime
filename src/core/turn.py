@@ -101,6 +101,8 @@ class Turn:
     compacted: bool = False
     size_retries: int = 0
     skip_routes: list[str] = field(default_factory=list)
+    rate_limited: bool = False
+    """A model call this turn failed over because a provider's rate limit or quota was hit."""
     schema_retries: int = 0
     memory_statuses: list[str] = field(default_factory=list)
     files_named: list[str] = field(default_factory=list)

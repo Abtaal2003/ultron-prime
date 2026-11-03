@@ -504,3 +504,21 @@ async def test_private_chats_keep_nothing_in_the_index(rt: Runtime) -> None:
     assert await rt.services.memory.should_evaluate(chat, "x") in (True, False)  # type: ignore[union-attr]
     rows = await rt.db.fetchall("SELECT * FROM messages WHERE chat_id=?", (chat,))
     assert len(rows) == 2  # but the transcript itself is stored
+
+
+async def test_an_empty_reply_after_rate_limits_says_quota_not_size(make_runtime, script) -> None:  # type: ignore[no-untyped-def]
+    from src.core.agent import EMPTY_REPLY_TEXT, QUOTA_EMPTY_TEXT
+    from src.core.errors import RateLimited
+    from src.core.events import AgentDone, ProviderFailover
+
+    runtime = await make_runtime(fallback_chain=["fake:m", "fake:n"])
+    chat = await runtime.services.history.create_chat("t")
+    script.push("main", RateLimited("tokens per day"), Reply(text=""))
+    _, events = await run(runtime, chat, "What are the action items in my notes?")
+    assert of_type(events, ProviderFailover)
+    done = of_type(events, AgentDone)[-1]
+    assert done.final_text == QUOTA_EMPTY_TEXT
+
+    script.push("main", Reply(text=""))
+    _, events = await run(runtime, chat, "And the second document?")
+    assert of_type(events, AgentDone)[-1].final_text == EMPTY_REPLY_TEXT
