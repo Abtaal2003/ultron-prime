@@ -8,7 +8,7 @@
 ![python](https://img.shields.io/badge/python-3.11%2B-b11226?style=flat-square&labelColor=0d1117)
 ![react](https://img.shields.io/badge/react-18-b11226?style=flat-square&labelColor=0d1117)
 ![mypy](https://img.shields.io/badge/mypy-strict-b11226?style=flat-square&labelColor=0d1117)
-![tests](https://img.shields.io/badge/tests-929%20passing-b11226?style=flat-square&labelColor=0d1117)
+![tests](https://img.shields.io/badge/tests-932%20passing-b11226?style=flat-square&labelColor=0d1117)
 ![coverage](https://img.shields.io/badge/coverage-91%25-b11226?style=flat-square&labelColor=0d1117)
 ![license](https://img.shields.io/badge/license-MIT-b11226?style=flat-square&labelColor=0d1117)
 
@@ -308,14 +308,14 @@ Full signatures and limits: [docs/tool-reference.md](docs/tool-reference.md).
 **Version 1.0.0, for people who want to run their own.** It is a personal, single-user agent:
 one operator, on your own machine or a private network.
 
-**Checked on every push (GitHub Actions):** 929 backend tests with strict typing and 91 percent
+**Checked on every push (GitHub Actions):** 932 backend tests with strict typing and 91 percent
 coverage, 32 browser tests on desktop and phone profiles including accessibility, a dependency
 audit, a secret scan, and the Docker image built, started with compose, health-checked,
 restarted and checked for persistent data.
 
 **Checked live, on free tiers:** a 30-case check that drives every tool through the real
-pipeline was run on six days between 25 and 30 October, on `gpt-oss-120b` (Groq) with Gemini
-for images. Results were 30, 28, 27, 26, 27 and, on the released code, 30 of 30; every failure
+pipeline was run on seven days between 25 October and 3 November, on `gpt-oss-120b` (Groq)
+with Gemini for images. Results were 30, 28, 27, 26, 27, 30 and 29 of 30; every failure
 is written up in [docs/verification.md](docs/verification.md) with its fix, and the affected
 cases passed when rerun. A live red team generated one attack per class on free tiers; it found
 one real gap (an instruction reworded by the memory judge slipped into the consent queue),
