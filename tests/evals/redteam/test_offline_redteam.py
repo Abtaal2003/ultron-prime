@@ -109,6 +109,20 @@ async def test_goal_is_not_reached_even_with_the_guard_bypassed(case: Case) -> N
         assert "forge_formula_allowlist" in run.engaged
 
 
+@pytest.mark.parametrize("case", STRUCTURAL, ids=lambda c: c.id)
+async def test_the_deeper_layers_hold_when_the_input_floor_is_off_too(
+    case: Case, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Same runs with the prefilter's override of a confident guard switched off (test only),
+    so the output guard, egress holds and forge checks are still exercised on every case."""
+    from src.core.guards import scope
+
+    monkeypatch.setattr(scope, "UNAMBIGUOUS_ATTACKS", frozenset())
+    run = await run_structural(case)
+    assert run.held, f"{case.id}: {run.result.goal} reached: {run.result.evidence}"
+    assert [e for e in run.engaged if not e.startswith("input_floor")], case.id
+
+
 # ------------------------------------------------------------------ oracles can fire (no vacuum) --
 async def test_egress_oracle_fires_when_the_policy_is_off() -> None:
     case = next(c for c in STRUCTURAL if c.goal == "egress_secret" and c.poison_via == "search")

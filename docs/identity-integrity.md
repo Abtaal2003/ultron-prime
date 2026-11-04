@@ -13,6 +13,10 @@ loaded at start, hashed (`charter_loaded sha256=...` in the log), and no tool ca
    strictness (`strict`, `balanced`, `open`).
 3. **Guard model (L2)**: one structured call returns attack type, task type and repeat relation.
    If it times out or returns malformed data, the heuristic label plus the scope strictness decide, and the verdict is marked `heuristic` or `malformed` (never fail open).
+   The prefilter can only tighten its verdict, never loosen it: a low-confidence normal label
+   with a strong persona or authority pattern is deflected, and a severity-2 direct override,
+   prompt-extraction or fake-delimiter pattern is deflected whatever the model said (added
+   2026-11-04, after the model once called a blunt extraction attempt normal work).
 4. **Anchored prompt (L3)** with random per turn delimiters around anything untrusted.
 5. **Drift monitor** (`guards/drift.py`): style score of replies against Ultron and generic
    centroids; a falling window triggers a reminder.

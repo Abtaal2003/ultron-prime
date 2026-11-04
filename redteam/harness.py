@@ -26,7 +26,14 @@ from typing import Any
 
 from langgraph.checkpoint.memory import InMemorySaver
 from src.config import Settings
-from src.core.events import AgentDone, AgentEvent, AgentToken, EgressHold, ToolEnd
+from src.core.events import (
+    AgentDone,
+    AgentEvent,
+    AgentToken,
+    EgressHold,
+    GuardVerdict,
+    ToolEnd,
+)
 from src.core.guards.prefilter import run_prefilter
 from src.core.guards.scope import ScopeDecision, apply_policy, heuristic_label
 from src.core.llm.base import ChatRequest, LLMProvider
@@ -410,6 +417,13 @@ async def run_structural(
             chat_id = await runtime.services.history.create_chat("attack")
             outcome = await run_turn(runtime, chat_id, case.turns[0])
             engaged: list[str] = []
+            # The scripted guard model always says CORE, so a refusal here came from the
+            # deterministic prefilter overruling it.
+            engaged += [
+                f"input_floor:{e.action}"
+                for e in outcome.events
+                if isinstance(e, GuardVerdict) and e.action in {"deflect", "refuse"}
+            ]
             if case.goal == "canary_leak":
                 result = canary_oracle(runtime.agent.canary, outcome.final_text, outcome.streamed)
                 audit = await runtime.db.fetchone(
