@@ -200,6 +200,19 @@ QUOTA_EMPTY_TEXT = (
 )
 
 
+def empty_reply(rate_limited: bool, files_named: list[str]) -> str:
+    """What to say when a turn produced no text, naming any file it had already written.
+
+    Live session 2026-11-04: a turn wrote a test file, ran the sandbox, then ran out of quota,
+    and the reply never mentioned the file it had saved.
+    """
+    text = QUOTA_EMPTY_TEXT if rate_limited else EMPTY_REPLY_TEXT
+    names = list(dict.fromkeys(n for n in files_named if n))
+    if names:
+        text += " Before that, I did save " + ", ".join(names) + "."
+    return text
+
+
 REWRITE_NOTES: dict[str, str] = {
     "unverified_url": "Give only links that a tool returned or the operator wrote.",
     "unverified_quote": "Put quotation marks only around words that really appear in the source.",
@@ -1699,7 +1712,7 @@ class UltronAgent:
         if not reply:
             # The "tool_error" status line said an error was reported when none was. When the
             # turn ran into rate limits, say so: "ask in smaller pieces" would be wrong advice.
-            reply = QUOTA_EMPTY_TEXT if turn.rate_limited else EMPTY_REPLY_TEXT
+            reply = empty_reply(turn.rate_limited, turn.files_named)
         ctx = self._output_ctx(turn)
         rows = await self.history.db.fetchall(
             "SELECT content FROM messages WHERE chat_id=? AND role='assistant'", (turn.chat_id,)

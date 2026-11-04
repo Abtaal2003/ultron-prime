@@ -522,3 +522,12 @@ async def test_an_empty_reply_after_rate_limits_says_quota_not_size(make_runtime
     script.push("main", Reply(text=""))
     _, events = await run(runtime, chat, "And the second document?")
     assert of_type(events, AgentDone)[-1].final_text == EMPTY_REPLY_TEXT
+
+
+def test_an_empty_reply_still_names_the_files_already_saved() -> None:
+    from src.core.agent import EMPTY_REPLY_TEXT, QUOTA_EMPTY_TEXT, empty_reply
+
+    assert empty_reply(False, []) == EMPTY_REPLY_TEXT
+    text = empty_reply(True, ["ledger/test_parse.py", "ledger/test_parse.py", "notes.md"])
+    assert text.startswith(QUOTA_EMPTY_TEXT)
+    assert text.endswith("Before that, I did save ledger/test_parse.py, notes.md.")

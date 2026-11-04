@@ -8,7 +8,7 @@
 ![python](https://img.shields.io/badge/python-3.11%2B-b11226?style=flat-square&labelColor=0d1117)
 ![react](https://img.shields.io/badge/react-18-b11226?style=flat-square&labelColor=0d1117)
 ![mypy](https://img.shields.io/badge/mypy-strict-b11226?style=flat-square&labelColor=0d1117)
-![tests](https://img.shields.io/badge/tests-981%20passing-b11226?style=flat-square&labelColor=0d1117)
+![tests](https://img.shields.io/badge/tests-982%20passing-b11226?style=flat-square&labelColor=0d1117)
 ![coverage](https://img.shields.io/badge/coverage-91%25-b11226?style=flat-square&labelColor=0d1117)
 ![license](https://img.shields.io/badge/license-MIT-b11226?style=flat-square&labelColor=0d1117)
 
@@ -308,7 +308,7 @@ Full signatures and limits: [docs/tool-reference.md](docs/tool-reference.md).
 **Version 1.0.0, for people who want to run their own.** It is a personal, single-user agent:
 one operator, on your own machine or a private network.
 
-**Checked on every push (GitHub Actions):** 981 backend tests with strict typing and 91 percent
+**Checked on every push (GitHub Actions):** 982 backend tests with strict typing and 91 percent
 coverage, 32 browser tests on desktop and phone profiles including accessibility, a dependency
 audit, a secret scan, and the Docker image built, started with compose, health-checked,
 restarted and checked for persistent data.
