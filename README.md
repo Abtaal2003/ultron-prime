@@ -206,16 +206,24 @@ reach the model; the egress hold is what stopped the leak. `strict` mode quarant
 
 ## Quick start
 
-You need an API key for at least one of Groq, Gemini or Anthropic. Groq and Gemini both have
-free tiers, and `.env.free.example` is already set up for them
-([Groq key](https://console.groq.com/keys), [Gemini key](https://aistudio.google.com/apikey)).
+You need an API key. Two ready-made settings files cover the usual cases:
+
+* **`.env.anthropic.example`** for a paid [Anthropic key](https://console.anthropic.com/):
+  Sonnet for the conversation, Haiku for the guard and other small jobs, no request size cap.
+  The routing is checked by `ultron doctor` and the tests, but Claude models have not yet been
+  run live with it (see [Known limitations](#known-limitations)).
+* **`.env.free.example`** for the free tiers of [Groq](https://console.groq.com/keys) and
+  [Gemini](https://aistudio.google.com/apikey). Free tiers cap request size and daily use, so
+  he remembers less of a long chat word for word and runs out sooner.
+
+The commands below use the paid file; swap in the free one if that's what you have.
 
 **With Docker** (nothing else to install):
 
 ```bash
 git clone https://github.com/Abtaal2003/ultron-prime.git
 cd ultron-prime
-cp .env.free.example .env        # paste your keys into .env
+cp .env.anthropic.example .env   # paste your key into .env
 docker compose up -d --build     # the first build takes a few minutes
 docker compose logs ultron       # shows a one-time passphrase
 ```
@@ -230,7 +238,7 @@ rebuilds.
 git clone https://github.com/Abtaal2003/ultron-prime.git
 cd ultron-prime
 uv sync --extra embeddings       # includes a local embedding model (a large download)
-cp .env.free.example .env        # paste your keys into .env
+cp .env.anthropic.example .env   # paste your key into .env
 (cd web && npm ci && npm run build)
 uv run ultron                    # prints the URL and a one-time passphrase
 ```

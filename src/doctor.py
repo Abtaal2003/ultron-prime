@@ -113,8 +113,9 @@ def check(settings: Settings) -> list[Finding]:
             Finding(
                 "warn",
                 "free tier",
-                "Groq's free tier rejects requests over 8,000 tokens. Set MAX_REQUEST_TOKENS=8000 "
-                "and LLM_MAX_WAIT_S=60 (see .env.example, 'Groq free tier').",
+                "on Groq's free tier, set MAX_REQUEST_TOKENS=8000 and LLM_MAX_WAIT_S=60 (it "
+                "rejects larger requests; see .env.free.example). Paid Groq accounts can ignore "
+                "this.",
             )
         )
     for label, path in (("data folder", settings.data_dir), ("workspace", settings.workspace_dir)):

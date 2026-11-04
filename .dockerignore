@@ -2,6 +2,7 @@
 .env.*
 !.env.example
 !.env.free.example
+!.env.anthropic.example
 .git
 .github
 .venv

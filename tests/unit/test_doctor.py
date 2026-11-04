@@ -147,3 +147,21 @@ def test_image_reading_needs_a_model_that_can_see(tmp_path: Path) -> None:
     assert found["route quarantine_reader_vision"].level == "warn"
     found = by_topic(doctor.check(make(tmp_path, groq_api_key="k", gemini_api_key="k")))
     assert found["route quarantine_reader_vision"].message == "gemini:gemini-3.5-flash"
+
+
+def test_the_anthropic_preset_is_a_valid_setup(tmp_path: Path) -> None:
+    from src.config import PROJECT_ROOT
+
+    preset = PROJECT_ROOT / ".env.anthropic.example"
+    env = tmp_path / ".env"
+    env.write_text(
+        preset.read_text().replace("ANTHROPIC_API_KEY=\n", "ANTHROPIC_API_KEY=k\n")
+        + f"\nSQLITE_PATH={tmp_path}/d/u.db\nWORKSPACE_ROOT={tmp_path}/ws\nEMBEDDING_BACKEND=hashing\n"
+    )
+    s = Settings(_env_file=str(env))  # type: ignore[call-arg]
+    found = by_topic(doctor.check(s))
+    assert found["route main"].message == "anthropic:claude-sonnet-5-5"
+    assert found["route guard"].message == "anthropic:claude-haiku-5-5"
+    assert found["route quarantine_reader_vision"].message == "anthropic:claude-haiku-5-5"
+    assert s.stm_token_budget == 12000 and s.max_request_tokens == 0
+    assert not [f for f in found.values() if f.level == "fail"]
