@@ -531,3 +531,29 @@ def test_an_empty_reply_still_names_the_files_already_saved() -> None:
     text = empty_reply(True, ["ledger/test_parse.py", "ledger/test_parse.py", "notes.md"])
     assert text.startswith(QUOTA_EMPTY_TEXT)
     assert text.endswith("Before that, I did save ledger/test_parse.py, notes.md.")
+
+
+def test_messages_cut_to_fit_leave_a_trace_in_the_summary() -> None:
+    from src.core.agent import UltronAgent as Agent
+    from src.core.llm.base import Message
+    from src.core.memory.window import Window
+    from src.core.turn import Turn
+
+    turn = Turn("c", "t", "what's my service called?", [], False, "m")
+    turn.window = Window(
+        messages=[
+            Message.user("I'm building a FastAPI service called ledger."),
+            Message.assistant("Noted."),
+            Message.user("Save it to ledger/parse.py."),
+            Message.assistant("Saved to ledger/parse.py."),
+        ],
+        summary="The operator likes pytest.",
+    )
+    Agent._compact(turn, hard=True)
+    assert [m.text() for m in turn.window.messages] == [
+        "Save it to ledger/parse.py.",
+        "Saved to ledger/parse.py.",
+    ]
+    summary = turn.window.summary or ""
+    assert summary.startswith("The operator likes pytest.")
+    assert "called ledger" in summary and "Ultron: Noted." in summary

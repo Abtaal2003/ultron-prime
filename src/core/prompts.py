@@ -120,7 +120,7 @@ class PromptBuilder:
         """Block 7: earlier-in-this-chat summary and past-chat snippets as untrusted data."""
         lines: list[str] = []
         if summary:
-            lines.append(f"Earlier in this conversation (summary): {_clean_line(summary, 1500)}")
+            lines.append(f"Earlier in this conversation (summary): {_clean_line(summary, 3200)}")
         for h in history:
             # No title or date: those became "you asked this on <date> in <title>" in replies
             # (live runs, 2026-10-25 and 26). search_past_chats gives both when he needs them.

@@ -13,6 +13,16 @@ CREATE TABLE IF NOT EXISTS chats (
   titled      INTEGER NOT NULL DEFAULT 0
 );
 
+-- A rolling summary of the part of a chat that no longer fits the short-term window. It is
+-- extended as messages fall out of the window, so it covers the whole chat from the start.
+CREATE TABLE IF NOT EXISTS chat_summaries (
+  chat_id          TEXT PRIMARY KEY REFERENCES chats(id) ON DELETE CASCADE,
+  upto_message_id  TEXT NOT NULL,
+  upto_count       INTEGER NOT NULL,
+  summary          TEXT NOT NULL,
+  updated_at       TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS messages (
   id               TEXT PRIMARY KEY,
   chat_id          TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,

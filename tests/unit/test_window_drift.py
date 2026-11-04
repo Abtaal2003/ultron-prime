@@ -97,6 +97,68 @@ async def test_one_giant_message_still_fits(
     assert len(window.messages) == 1 and len(window.messages[0].text()) < 7000
 
 
+async def test_the_summary_grows_with_the_chat_and_survives_a_restart(
+    settings: Settings, history: HistoryStore, chat: str, make_router: Any
+) -> None:
+    """Live session 2026-11-04: a service named in the first message was forgotten."""
+    await history.add_message(chat, "user", "I'm building a FastAPI service called ledger. " * 3)
+    await _fill(history, chat, 15)
+    script = [
+        Reply(text="The operator is building a FastAPI service called ledger."),
+        Reply(text="Ledger (FastAPI). Then the operator chose pytest."),
+    ]
+    router, fake = make_router(script)
+    small = settings.model_copy(update={"stm_token_budget": 600})
+    first = await WindowBuilder(history, router, small).build(chat)
+    assert first.summary == "The operator is building a FastAPI service called ledger."
+    folded = fake.requests[0].messages[0].text()
+    assert "(empty)" in folded and "called ledger" in folded  # the very first message is in
+
+    # A new builder (a restart) reuses the stored summary: no call while nothing new fell out.
+    again = await WindowBuilder(history, router, small).build(chat)
+    assert again.summary == first.summary and len(fake.requests) == 1
+
+    # More turns push more messages out; only those are folded into the previous summary.
+    await _fill(history, chat, 6)
+    later = await WindowBuilder(history, router, small).build(chat)
+    assert later.summary == "Ledger (FastAPI). Then the operator chose pytest."
+    second = fake.requests[1].messages[0].text()
+    assert "The operator is building a FastAPI service called ledger." in second
+    assert "called ledger. I'm building" not in second  # the old messages aren't sent again
+
+
+async def test_a_long_backlog_is_folded_in_chunks(
+    settings: Settings, history: HistoryStore, chat: str, make_router: Any
+) -> None:
+    from src.core.memory.window import CHUNK_MESSAGES
+
+    await _fill(history, chat, CHUNK_MESSAGES * 2 + 10, size=10)
+    router, fake = make_router([Reply(text=f"summary {i}") for i in range(5)])
+    window = await WindowBuilder(
+        history, router, settings.model_copy(update={"stm_token_budget": 300})
+    ).build(chat)
+    assert len(fake.requests) >= 2 and window.summary == f"summary {len(fake.requests) - 1}"
+    assert "message 0 " in fake.requests[0].messages[0].text()
+
+
+async def test_a_failed_fold_keeps_the_summary_so_far(
+    settings: Settings, history: HistoryStore, chat: str, make_router: Any
+) -> None:
+    await _fill(history, chat, 20)
+    router, _ = make_router([Reply(text="Earlier: ledger.")])
+    small = settings.model_copy(update={"stm_token_budget": 600})
+    assert (await WindowBuilder(history, router, small).build(chat)).summary == "Earlier: ledger."
+    await _fill(history, chat, 6)
+    down, _ = make_router(failing(ProviderUnavailable("down")))
+    assert (await WindowBuilder(history, down, small).build(chat)).summary == "Earlier: ledger."
+
+
+def test_a_request_cap_shrinks_the_window(settings: Settings, history: HistoryStore) -> None:
+    capped = settings.model_copy(update={"max_request_tokens": 8000, "stm_token_budget": 6000})
+    assert WindowBuilder(history, None, capped).effective_budget() == 2000
+    assert WindowBuilder(history, None, settings).effective_budget() == settings.stm_token_budget
+
+
 # --- drift ------------------------------------------------------------------------------------
 
 

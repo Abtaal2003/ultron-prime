@@ -185,6 +185,8 @@ _NOT_A_RUN_REQUEST = re.compile(
 )
 SANDBOX_TOOL = "isolated_python_sandbox"
 COMPACT_RESULT_CHARS = 1200
+CUT_TRACE_CHARS = 160
+CUT_TRACE_TOTAL = 1200
 HARD_RESULT_CHARS = 800
 MAX_SCHEMA_RETRIES = 2
 MIN_REPLY_TOKENS = 1536
@@ -1376,7 +1378,17 @@ class UltronAgent:
         if turn.window is not None:
             # Even the hard cut keeps the last exchange: without it "save it to parse.py"
             # saved an invented file (2026-10-29).
+            cut = turn.window.messages[:-COMPACT_WINDOW_MESSAGES]
             turn.window.messages = turn.window.messages[-COMPACT_WINDOW_MESSAGES:]
+            if cut:
+                # Cut messages leave a short trace instead of vanishing: they were in neither
+                # the window nor the summary, and a name given early was forgotten (2026-11-04).
+                trace = " | ".join(
+                    f"{'Operator' if m.role == 'user' else 'Ultron'}: {m.text()[:CUT_TRACE_CHARS]}"
+                    for m in cut
+                )[:CUT_TRACE_TOTAL]
+                earlier = turn.window.summary or ""
+                turn.window.summary = f"{earlier} Also earlier, shortened to fit: {trace}".strip()
         if hard:
             turn.example_turns = []
 
