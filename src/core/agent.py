@@ -1209,12 +1209,15 @@ class UltronAgent:
             iteration >= self.settings.max_tool_iterations
             or turn.gate.tool_time_s >= self.settings.max_tool_time_s
         )
+        if turn.window is not None:  # compaction may have added to it since inputs were set
+            turn.prompt_inputs.window_summary = turn.window.summary
         built = self.prompts.build(turn.prompt_inputs)
         # Kept through trimming: a few hundred tokens that carry the voice. A live run
         # (2026-10-26) trimmed on most calls, dropped them, and the replies went flat.
         turn.example_turns = built.example_turns
         tools, tool_choice, notes = self._turn_tools(turn, iteration, capped)
-        system_dynamic = built.system_dynamic + "".join(f"\n\n{n}" for n in notes)
+        turn.dynamic_notes = "".join(f"\n\n{n}" for n in notes)
+        system_dynamic = built.system_dynamic + turn.dynamic_notes
         request = ChatRequest(
             system=built.system,
             system_dynamic=system_dynamic,
@@ -1321,6 +1324,20 @@ class UltronAgent:
         else:
             self.learned_request_cap = min(self.learned_request_cap or limit, limit)
 
+    def _after_compact(self, turn: Turn, request: ChatRequest) -> ChatRequest:
+        """The request rebuilt from the compacted turn: messages and the summary block.
+
+        Compaction notes what it cut in the window summary, which lives in the dynamic system
+        text. Only the messages used to be rebuilt, so the note never reached the model and a
+        name given in the first message was forgotten (live check, 2026-11-05).
+        """
+        update: dict[str, Any] = {"messages": self._messages(turn, turn.example_turns)}
+        if turn.window is not None and request.role == "main":
+            turn.prompt_inputs.window_summary = turn.window.summary
+            built = self.prompts.build(turn.prompt_inputs)
+            update["system_dynamic"] = built.system_dynamic + turn.dynamic_notes
+        return request.model_copy(update=update)
+
     def _fit_request(self, turn: Turn, request: ChatRequest) -> ChatRequest:
         """Keep prompt plus reply budget under ``max_request_tokens`` (0 means no cap).
 
@@ -1333,9 +1350,7 @@ class UltronAgent:
         if self.learned_input_cap and request_tokens(request) > self.learned_input_cap:
             log.info("request_trimmed_before_sending", turn_id=turn.turn_id)
             self._compact(turn)
-            request = request.model_copy(
-                update={"messages": self._messages(turn, turn.example_turns)}
-            )
+            request = self._after_compact(turn, request)
         if self.learned_reply_cap and request.max_tokens > self.learned_reply_cap:
             request = request.model_copy(update={"max_tokens": self.learned_reply_cap})
         if not cap or request_tokens(request) + request.max_tokens <= cap:
@@ -1345,9 +1360,7 @@ class UltronAgent:
                 break
             log.info("request_trimmed_before_sending", turn_id=turn.turn_id, hard=hard)
             self._compact(turn, hard=hard)
-            request = request.model_copy(
-                update={"messages": self._messages(turn, turn.example_turns)}
-            )
+            request = self._after_compact(turn, request)
         room = cap - request_tokens(request)
         budget = max(MIN_REPLY_TOKENS, min(room, request.max_tokens))
         update: dict[str, Any] = {"max_tokens": budget}

@@ -557,3 +557,22 @@ def test_messages_cut_to_fit_leave_a_trace_in_the_summary() -> None:
     summary = turn.window.summary or ""
     assert summary.startswith("The operator likes pytest.")
     assert "called ledger" in summary and "Ultron: Noted." in summary
+
+
+async def test_a_fact_from_the_first_message_survives_trimming(make_runtime, script) -> None:  # type: ignore[no-untyped-def]
+    """Live check 2026-11-05: with an 8,000-token cap the trim cut the first message, and the
+    note of what was cut never reached the model, so 'ledger' was forgotten."""
+    runtime = await make_runtime(max_request_tokens=4000, stm_token_budget=6000)
+    history = runtime.services.history
+    chat = await history.create_chat("long")
+    await history.add_message(
+        chat, "user", "My FastAPI service is called ledger; Saga reviews PRs."
+    )
+    await history.add_message(chat, "assistant", "Noted.")
+    for i in range(6):
+        await history.add_message(chat, "user", f"Filler question {i}? " + "word " * 40)
+        await history.add_message(chat, "assistant", f"Filler answer {i}. " + "word " * 40)
+    await run(runtime, chat, "What did I say my service is called?")
+    main = script.requests("main")[-1]
+    assert "ledger" not in " ".join(m.text() for m in main.messages)  # the window was cut...
+    assert "ledger" in main.system_dynamic and "Saga" in main.system_dynamic  # ...but noted

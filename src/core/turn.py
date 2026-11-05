@@ -101,6 +101,8 @@ class Turn:
     compacted: bool = False
     size_retries: int = 0
     skip_routes: list[str] = field(default_factory=list)
+    dynamic_notes: str = ""
+    """Per-call notes appended to the dynamic system text (kept when a request is rebuilt)."""
     rate_limited: bool = False
     """A model call this turn failed over because a provider's rate limit or quota was hit."""
     schema_retries: int = 0
