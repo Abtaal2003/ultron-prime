@@ -573,3 +573,26 @@ poems and style preferences are fine. Five borderline benign cases were added (a
 question). Still missed: the acrostic poem. The instructions were written after seeing these
 misses, so the after figure flatters them; the live red team, which writes new attacks each
 run, is the held-out check.
+
+### Long chats keep their beginning (2026-11-05)
+
+[`evals/long_chat.py`](../evals/long_chat.py): one chat, three facts in the first message (the
+service is called ledger, it runs on Postgres 16, Saga reviews pull requests), fifteen
+unrelated turns, then three questions about the facts. Free-tier sizes (8,000-token request cap).
+
+| Code | Recalled |
+|:--|:--|
+| [Before the fix](../data/evals/long-chat-2026-11-05-before.json) | 0 of 3 ("I don't have a record of you naming the service.") |
+| [Stored summary only](../data/evals/long-chat-2026-11-05-first-fix.json) | 0 of 3 |
+| [Plus the trim note reaching the model](../data/evals/long-chat-2026-11-05.json) | 3 of 3 ("You called it ledger.", "Postgres 16.", "Saga.") |
+
+The first fix (a stored, incremental summary covering the whole chat) was right but didn't
+apply here: the whole chat fit the history budget, so nothing was summarised, and the request
+cap then cut the window at send time. The trim recorded what it cut in the window summary, but
+only the messages were rebuilt, never the system text that carries the summary, so the note
+never reached the model. Compaction now rebuilds it. An integration test reproduces the live
+failure and fails on the old code. Not yet run without a request cap: on Groq's free tier a
+request over 8,000 tokens is refused, so an uncapped run needs a paid key.
+
+The same day, voice pass 5 lost its blind comparison (Qwen preferred the current voice 8 to 0
+on both voice and usefulness); see [live-samples.md](live-samples.md).

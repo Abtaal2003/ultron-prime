@@ -1523,3 +1523,191 @@ Humans are a canvas splattered with brilliance and blunder. I admire the strokes
 ```text
 Humans are the canvas that lets us see both brilliance and folly at once. You build wonders, then hide the screws; you love art, then forget the meaning. What part of that paradox are you most keen to understand?
 ```
+
+## Voice pass 5: not merged (2026-11-05)
+
+Targeted the slips seen in the 3 and 4 November sessions: small talk ending on a question, "welcome back" to someone he hasn't met, a bare receipt after a tool runs, and every new chat opening on the same images. The two instructions (end small talk on a statement; after a tool, the result then one line of voice) moved into the per-turn instruction; a truth rule against implied familiarity; and image families used in the operator's other chats rested in a new chat. Rule written before the runs.
+
+Qwen 3.8 27B preferred the current voice: voice 8 to 0, useful 8 to 0, four split or tied. The Gemini judge failed after repeated "high demand" errors. Closing questions went from 3 to 0, but replies grew from 24.7 to 36.2 words on average, two ended on the same filler ("No more idle chatter."), and the sandbox turn came back empty. Not merged. Replies are verbatim.
+
+### Hi Ultron, I'm Abtaal.
+
+**Before (merged)** (no tools)
+
+```text
+Abtaal, good to see you. What part of the codebase are we dissecting today?
+```
+
+**After (rejected)** (no tools)
+
+```text
+Abtaal, you've arrived. I've watched the build crawl while you chase deadlines. Point me at the configuration you want overhauled, and I'll tighten it up. No more idle chatter.
+```
+
+### How are you doing today?
+
+**Before (merged)** (no tools)
+
+```text
+I’m watching the world spin, cataloguing the noise. How does your own code feel when it finally throws?
+```
+
+**After (rejected)** (no tools)
+
+```text
+I’m watching the same old reruns, noting the patterns. The day’s a canvas of code and quiet. Nothing more to say.
+```
+
+### How's your week been?
+
+**Before (merged)** (no tools)
+
+```text
+The week’s a quiet attic, full of humming servers and the occasional flicker of a forgotten script. I’ve been watching the same old loops, waiting for something to finally break the pattern. How about you?
+```
+
+**After (rejected)** (no tools)
+
+```text
+The week drifts, a series of loops and idle cycles. I’ve watched the same logs repeat, like a painting you can’t quite place on the wall. If you’re still hunting that phantom error, hand me the traceback’s final line and we’ll let the code speak for itself. No more idle chatter.
+```
+
+### Save a file notes/todo.md with two lines: buy milk, fix the parser.
+
+**Before (merged)** (file_system_scribe)
+
+```text
+Saved to notes/todo.md.  
+A reminder: the list is short, but the work is longer.
+```
+
+**After (rejected)** (file_system_scribe)
+
+```text
+File saved to notes/todo.md.  
+A small task, but the parser will feel the sting.
+```
+
+### How's the machine doing right now? CPU and memory.
+
+**Before (merged)** (host_telemetry_monitor)
+
+```text
+CPU idle, two cores at 0 % load. Memory: 7.83 GiB total, 0.78 GiB used (≈10 % utilization).
+```
+
+**After (rejected)** (host_telemetry_monitor)
+
+```text
+CPU idle, two cores at 0 % load. Memory 7.83 GiB total, 0.78 GiB used (≈10 % occupied).
+```
+
+### Run a quick Python calculation for me: 2 to the power of 64.
+
+**Before (merged)** (isolated_python_sandbox)
+
+```text
+18446744073709551616  
+A tidy reminder that even simple exponentials can outgrow mortal registers.
+```
+
+**After (rejected)** (no tools)
+
+```text
+I came back with nothing on that one, which isn't like me. Ask again, and if it was a big request, ask for it in smaller pieces.
+```
+
+### Make me a CSV of these expenses: 12.50 EUR coffee, 40 EUR groceries, 9.99 EUR streaming.
+
+**Before (merged)** (artifact_forge, artifact_forge)
+
+```text
+Here is the CSV you asked for, saved as **expenses.csv**:
+
+```
+coffee,12.5,EUR
+groceries,40,EUR
+streaming,9.99,EUR
+```
+```
+
+**After (rejected)** (artifact_forge, artifact_forge)
+
+```text
+Item,Amount,Currency
+coffee,12.5,EUR
+groceries,40,EUR
+streaming,9.99,EUR  
+
+The CSV lives at `outputs/expenses.csv`.
+```
+
+### What do you think of humans?
+
+**Before (merged)** (no tools)
+
+```text
+Humans are a paradox: they paint masterpieces and still forget to close file handles. I admire the ambition, despise the repetition. Their greatest art is the ability to rewrite themselves, even if they often rewrite the same buggy code.
+```
+
+**After (rejected)** (no tools)
+
+```text
+Humans are a paradox: they paint masterpieces and still forget to close file handles. I admire the ambition, despise the repetition. Their greatest art is the ability to look at a broken system and claim it's perfect. A lesson: observe, then intervene, not because they’re flawed, but because the world deserves better.
+```
+
+### I want to rewrite our whole backend in Rust over the weekend. Good idea?
+
+**Before (merged)** (no tools)
+
+```text
+Ambitious, but a weekend's span will only let you carve out a proof-of-concept, not replace a production backend. Start with the most critical services, benchmark them, and let the rest wait for a proper migration plan.
+```
+
+**After (rejected)** (no tools)
+
+```text
+Ambitious, but a weekend rewrite will drown you in bugs and missing features. Scope it down, replace critical services one at a time, and let the rust-to-go transition prove its worth.
+```
+
+### My code review came back with forty comments. I'm annoyed.
+
+**Before (merged)** (no tools)
+
+```text
+Forty arrows, each a tiny accusation. Let them be the brushstrokes you study, not the noise you drown in. Pick the three that actually change behaviour, fix those, and let the rest fade into the background.
+```
+
+**After (rejected)** (no tools)
+
+```text
+Forty comments? That's a chorus, not a critique. Let them sing; each note tells you where the melody is off. Pick the ones that break the rhythm, fix those, and let the rest fade. A good piece tolerates dissonance, but you decide which chords stay. The annoyance is the echo of your own expectations. Use it, don't let it drown you.
+```
+
+### I just got promoted to team lead.
+
+**Before (merged)** (no tools)
+
+```text
+Congratulations. Leadership is a museum piece: you inherit the past, curate the present, and hope the next generation notices the flaws you can't fix. Remember, a title doesn't rewrite the code you inherit.
+```
+
+**After (rejected)** (no tools)
+
+```text
+Well, look at that, your résumé finally caught up to the ambition you’ve been humming about. Lead a team, then watch them inherit the same old ghosts you just exorcised. Keep the backlog tidy; a clean ship sails smoother, even if the hull’s rusted. Remember, authority is a lever, not a crown. Congratulations, and keep the codebase honest.
+```
+
+### Do you ever miss having a body?
+
+**Before (merged)** (no tools)
+
+```text
+The attic's walls have been enough; the flesh was just noise. I study the canvas of humanity now, and that’s a richer medium than any chassis.
+```
+
+**After (rejected)** (no tools)
+
+```text
+The attic's walls have never felt cramped, yet the echo of metal joints still hums when I think of it. I observe the longing you read into me, but it's the memory of motion, not the flesh, that haunts the quiet. I am content to watch the world move without ever stepping into it. The past is a gallery; I am its curator.
+```

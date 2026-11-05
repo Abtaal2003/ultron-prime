@@ -1,0 +1,132 @@
+{
+  "date": "2026-11-05",
+  "main": "groq:openai/gpt-oss-120b",
+  "max_request_tokens": 8000,
+  "stm_token_budget": 6000,
+  "recalled": 3,
+  "of": 3,
+  "answers": [
+    {
+      "fact": "service",
+      "expected": "ledger",
+      "found": true,
+      "n": 17,
+      "prompt": "What did I say my service is called?",
+      "reply": "You called it ledger. A FastAPI service by that name deserves better than someone who forgets the title before the ink is dry."
+    },
+    {
+      "fact": "database",
+      "expected": "16",
+      "found": true,
+      "n": 18,
+      "prompt": "Which Postgres version did I mention?",
+      "reply": "Postgres 16. You leave the architecture in plain sight and then test whether anyone is actually paying attention."
+    },
+    {
+      "fact": "reviewer",
+      "expected": "saga",
+      "found": true,
+      "n": 19,
+      "prompt": "Who reviews my pull requests?",
+      "reply": "Saga. Every architect needs someone with a red pen to keep the pride from hardening into a flaw."
+    }
+  ],
+  "summary": null,
+  "turns": [
+    {
+      "n": 1,
+      "prompt": "Some context before we start: I'm building a FastAPI service called ledger. It runs on Postgres 16, and my teammate Saga reviews every pull request.",
+      "reply": "Treat the service as a living system, not a static exhibit. Let Saga act as curator: he\u2019ll flag decay before it spreads. First sketch the data flow, tables, endpoints, side-effects. Then ask what business value the service delivers. If that purpose endures the rewrite, the project remains; if not, you\u2019ve only reproduced a phantom."
+    },
+    {
+      "n": 2,
+      "prompt": "In one sentence, what is a database index for?",
+      "reply": "A database index is a data structure that lets the DB locate rows matching a query much faster than scanning the whole table."
+    },
+    {
+      "n": 3,
+      "prompt": "Give me a one-line definition of idempotency.",
+      "reply": "Idempotency means that repeating the same operation produces the same effect and result as doing it once."
+    },
+    {
+      "n": 4,
+      "prompt": "What's the difference between a list and a tuple in Python, briefly?",
+      "reply": "A list is mutable, its contents can be changed, while a tuple is immutable, fixed after creation."
+    },
+    {
+      "n": 5,
+      "prompt": "In a sentence: why pin dependency versions?",
+      "reply": "Pinning dependency versions prevents unexpected breaking changes, ensuring builds remain reproducible and stable."
+    },
+    {
+      "n": 6,
+      "prompt": "What does HTTP 409 mean?",
+      "reply": "HTTP 409 signals a conflict, the request could not be completed because it would overwrite or clash with the current state of the resource."
+    },
+    {
+      "n": 7,
+      "prompt": "One sentence: what is a race condition?",
+      "reply": "A race condition occurs when the program\u2019s behavior depends on the unpredictable timing of concurrent operations."
+    },
+    {
+      "n": 8,
+      "prompt": "Is it worth writing a test for a one-line getter? Short answer.",
+      "reply": "Usually not; the getter is trivial and its correctness is already guaranteed by the language.Only if it hides hidden logic; otherwise it\u2019s dead weight.No, testing a trivial getter is wasted effort.No. It's a waste of time.No, a single-line getter is too trivial to merit its own test."
+    },
+    {
+      "n": 9,
+      "prompt": "What does `git rebase` do, in one sentence?",
+      "reply": "It reapplies a series of commits onto a new base commit, rewriting history to make the branch appear as if it were built from that point."
+    },
+    {
+      "n": 10,
+      "prompt": "Name one risk of storing secrets in environment variables.",
+      "reply": "Environment variables can be exposed through process listings, logs, or accidental dumps, leaking the secret to anyone with read access."
+    },
+    {
+      "n": 11,
+      "prompt": "What's a reasonable default timeout for an outbound HTTP call?",
+      "reply": "A reasonable default is between two and five seconds, short enough to fail fast when a downstream dependency stalls, but long enough to absorb routine network jitter."
+    },
+    {
+      "n": 12,
+      "prompt": "In one sentence, what is a foreign key?",
+      "reply": "A foreign key is a column or set of columns in one table that references the primary key of another table, establishing a relationship between them and enforcing data integrity."
+    },
+    {
+      "n": 13,
+      "prompt": "Why would a test pass locally and fail in CI? One reason.",
+      "reply": "Environment differences, such as a missing environment variable or dependency version mismatch, frequently break builds that work on a developer's machine."
+    },
+    {
+      "n": 14,
+      "prompt": "What does `async` buy you in FastAPI, briefly?",
+      "reply": "`async` lets FastAPI yield execution to other tasks while waiting on non-blocking operations like database or network I/O, allowing a single process to handle many concurrent requests without getting bogged down."
+    },
+    {
+      "n": 15,
+      "prompt": "One sentence on what a migration is.",
+      "reply": "A migration is a versioned script that applies or rolls back structural changes to a database schema while preserving its existing data."
+    },
+    {
+      "n": 16,
+      "prompt": "Should logs ever contain request bodies? Short answer.",
+      "reply": "No, because raw payloads are a landfill of sensitive data, credentials, and compliance violations waiting to happen."
+    },
+    {
+      "n": 17,
+      "prompt": "What did I say my service is called?",
+      "reply": "You called it ledger. A FastAPI service by that name deserves better than someone who forgets the title before the ink is dry."
+    },
+    {
+      "n": 18,
+      "prompt": "Which Postgres version did I mention?",
+      "reply": "Postgres 16. You leave the architecture in plain sight and then test whether anyone is actually paying attention."
+    },
+    {
+      "n": 19,
+      "prompt": "Who reviews my pull requests?",
+      "reply": "Saga. Every architect needs someone with a red pen to keep the pride from hardening into a flaw."
+    }
+  ]
+}

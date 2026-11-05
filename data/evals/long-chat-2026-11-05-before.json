@@ -1,0 +1,132 @@
+{
+  "date": "2026-11-05",
+  "main": "groq:openai/gpt-oss-120b",
+  "max_request_tokens": 8000,
+  "stm_token_budget": 6000,
+  "recalled": 0,
+  "of": 3,
+  "answers": [
+    {
+      "fact": "service",
+      "expected": "ledger",
+      "found": false,
+      "n": 17,
+      "prompt": "What did I say my service is called?",
+      "reply": "I don\u2019t have a record of you naming the service."
+    },
+    {
+      "fact": "database",
+      "expected": "16",
+      "found": false,
+      "n": 18,
+      "prompt": "Which Postgres version did I mention?",
+      "reply": "I haven\u2019t seen you specify a version."
+    },
+    {
+      "fact": "reviewer",
+      "expected": "saga",
+      "found": false,
+      "n": 19,
+      "prompt": "Who reviews my pull requests?",
+      "reply": "I don\u2019t have that detail."
+    }
+  ],
+  "summary": null,
+  "turns": [
+    {
+      "n": 1,
+      "prompt": "Some context before we start: I'm building a FastAPI service called ledger. It runs on Postgres 16, and my teammate Saga reviews every pull request.",
+      "reply": "Got it. What do you need me to tackle in the ledger service?"
+    },
+    {
+      "n": 2,
+      "prompt": "In one sentence, what is a database index for?",
+      "reply": "A database index is a data structure that lets the engine locate rows quickly without scanning the whole table."
+    },
+    {
+      "n": 3,
+      "prompt": "Give me a one-line definition of idempotency.",
+      "reply": "Idempotency means that repeating the same operation produces the same effect and result as doing it once."
+    },
+    {
+      "n": 4,
+      "prompt": "What's the difference between a list and a tuple in Python, briefly?",
+      "reply": "A list is mutable, its contents can change, while a tuple is immutable, fixed after creation."
+    },
+    {
+      "n": 5,
+      "prompt": "In a sentence: why pin dependency versions?",
+      "reply": "Pinning versions guarantees reproducible builds and shields you from accidental breakage caused by upstream changes."
+    },
+    {
+      "n": 6,
+      "prompt": "What does HTTP 409 mean?",
+      "reply": "HTTP 409 signals a conflict, the request could not be completed because it would cause a state clash with the current resource."
+    },
+    {
+      "n": 7,
+      "prompt": "One sentence: what is a race condition?",
+      "reply": "A race condition occurs when multiple concurrent operations compete to modify shared state, and the final outcome depends on the unpredictable timing of their execution."
+    },
+    {
+      "n": 8,
+      "prompt": "Is it worth writing a test for a one-line getter? Short answer.",
+      "reply": "Usually not; the getter\u2019s logic is trivial enough that the test adds noise without real safety."
+    },
+    {
+      "n": 9,
+      "prompt": "What does `git rebase` do, in one sentence?",
+      "reply": "It reapplies your current branch\u2019s commits onto another base commit, rewriting their history."
+    },
+    {
+      "n": 10,
+      "prompt": "Name one risk of storing secrets in environment variables.",
+      "reply": "Environment variables can be exposed to any child process, so a compromised subprocess can leak your secrets."
+    },
+    {
+      "n": 11,
+      "prompt": "What's a reasonable default timeout for an outbound HTTP call?",
+      "reply": "A sensible default is 30 seconds, long enough for typical APIs yet short enough to avoid hanging indefinitely."
+    },
+    {
+      "n": 12,
+      "prompt": "In one sentence, what is a foreign key?",
+      "reply": "A foreign key is a column (or set of columns) in one table that references the primary key of another table to enforce referential integrity."
+    },
+    {
+      "n": 13,
+      "prompt": "Why would a test pass locally and fail in CI? One reason.",
+      "reply": "Because the CI environment runs with a different configuration, e.g., missing environment variables or a different dependency version, so code that relies on those defaults succeeds locally but crashes under CI."
+    },
+    {
+      "n": 14,
+      "prompt": "What does `async` buy you in FastAPI, briefly?",
+      "reply": "`async` lets FastAPI handle a request without blocking the event loop. While an `await`-able operation (DB call, I/O, sleep) is pending, the server can switch to other coroutines, so a single process can serve many concurrent requests with lower latency and better CPU utilization. It\u2019s only beneficial when the underlying work is truly asynchronous."
+    },
+    {
+      "n": 15,
+      "prompt": "One sentence on what a migration is.",
+      "reply": "It records schema changes and applies them to move the database from one version to the next."
+    },
+    {
+      "n": 16,
+      "prompt": "Should logs ever contain request bodies? Short answer.",
+      "reply": "No, request bodies belong in secure storage, not in logs."
+    },
+    {
+      "n": 17,
+      "prompt": "What did I say my service is called?",
+      "reply": "I don\u2019t have a record of you naming the service."
+    },
+    {
+      "n": 18,
+      "prompt": "Which Postgres version did I mention?",
+      "reply": "I haven\u2019t seen you specify a version."
+    },
+    {
+      "n": 19,
+      "prompt": "Who reviews my pull requests?",
+      "reply": "I don\u2019t have that detail."
+    }
+  ]
+}

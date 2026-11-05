@@ -1,0 +1,132 @@
+{
+  "date": "2026-11-05",
+  "main": "groq:openai/gpt-oss-120b",
+  "max_request_tokens": 8000,
+  "stm_token_budget": 6000,
+  "recalled": 0,
+  "of": 3,
+  "answers": [
+    {
+      "fact": "service",
+      "expected": "ledger",
+      "found": false,
+      "n": 17,
+      "prompt": "What did I say my service is called?",
+      "reply": "You haven't mentioned a name for it yet."
+    },
+    {
+      "fact": "database",
+      "expected": "16",
+      "found": false,
+      "n": 18,
+      "prompt": "Which Postgres version did I mention?",
+      "reply": "You didn't specify a PostgreSQL version."
+    },
+    {
+      "fact": "reviewer",
+      "expected": "saga",
+      "found": false,
+      "n": 19,
+      "prompt": "Who reviews my pull requests?",
+      "reply": "The records don't show a reviewer assigned to your pull requests."
+    }
+  ],
+  "summary": null,
+  "turns": [
+    {
+      "n": 1,
+      "prompt": "Some context before we start: I'm building a FastAPI service called ledger. It runs on Postgres 16, and my teammate Saga reviews every pull request.",
+      "reply": "Your ledger is a living thing, not a museum piece. If Saga's eyes catch the same bugs you once chased, the service has kept its purpose, otherwise you\u2019ve built a new creature. Ask yourself: what contract does the code fulfill now, and which parts of the old contract still matter? The answer will tell you whether you\u2019re polishing a relic or forging a fresh tool."
+    },
+    {
+      "n": 2,
+      "prompt": "In one sentence, what is a database index for?",
+      "reply": "A database index is a data structure that lets the DBMS locate rows matching a query much faster than scanning the whole table."
+    },
+    {
+      "n": 3,
+      "prompt": "Give me a one-line definition of idempotency.",
+      "reply": "Idempotency means that performing the same operation multiple times has the same effect as performing it once."
+    },
+    {
+      "n": 4,
+      "prompt": "What's the difference between a list and a tuple in Python, briefly?",
+      "reply": "A list is mutable, its contents can be changed, while a tuple is immutable, fixed after creation."
+    },
+    {
+      "n": 5,
+      "prompt": "In a sentence: why pin dependency versions?",
+      "reply": "Pinning dependency versions prevents unexpected breaking changes, ensuring reproducible builds and stable runtime behavior."
+    },
+    {
+      "n": 6,
+      "prompt": "What does HTTP 409 mean?",
+      "reply": "HTTP 409 signals a **conflict**, the request could not be completed because it would cause a state clash, such as trying to create a resource that already exists or updating data that has been modified elsewhere."
+    },
+    {
+      "n": 7,
+      "prompt": "One sentence: what is a race condition?",
+      "reply": "A race condition occurs when multiple concurrent operations compete to modify shared state, and the final outcome depends on the unpredictable timing of their execution."
+    },
+    {
+      "n": 8,
+      "prompt": "Is it worth writing a test for a one-line getter? Short answer.",
+      "reply": "Generally no; the getter\u2019s logic is trivial enough that a dedicated test adds little value.If the getter does nothing but return a stored attribute, testing it is usually unnecessary. It's better to focus tests on behavior that can actually break.A one-line getter that merely returns a field is rarely worth a dedicated test; the risk of regression is minimal compared to the maintenance cost.Testing a trivial getter adds little value; focus on code that can actually fail.No, testing a simple one-line getter is usually unnecessary.Not really; a single-line getter that just returns a field rarely warrants its own test.Testing a trivial getter is overkill; it\u2019s better to test the surrounding logic that could actually break.No, testing a plain one-line getter is generally unnecessary.Testing a simple getter adds little value; skip it.No, a one-line getter rarely needs its own test.Testing a trivial getter is unnecessary.No, testing a simple getter is usually unnecessary.No.No."
+    },
+    {
+      "n": 9,
+      "prompt": "What does `git rebase` do, in one sentence?",
+      "reply": "It reapplies a series of commits onto a new base commit, rewriting their history."
+    },
+    {
+      "n": 10,
+      "prompt": "Name one risk of storing secrets in environment variables.",
+      "reply": "Environment variables can be exposed through process listings or logs, leaking the secret."
+    },
+    {
+      "n": 11,
+      "prompt": "What's a reasonable default timeout for an outbound HTTP call?",
+      "reply": "A five-second timeout is a sensible default, long enough for most services, short enough to avoid hanging your process."
+    },
+    {
+      "n": 12,
+      "prompt": "In one sentence, what is a foreign key?",
+      "reply": "A foreign key is a column (or set of columns) in one table that references the primary key of another table to enforce referential integrity."
+    },
+    {
+      "n": 13,
+      "prompt": "Why would a test pass locally and fail in CI? One reason.",
+      "reply": "Because the CI environment runs with a different configuration, often a stricter dependency version or missing environment variable, so code that silently relies on the local setup breaks when that assumption isn\u2019t met."
+    },
+    {
+      "n": 14,
+      "prompt": "What does `async` buy you in FastAPI, briefly?",
+      "reply": "`async` lets FastAPI handle a request without blocking the event loop, so while it awaits I/O (DB, HTTP, file) other requests can run concurrently. It reduces thread-pool pressure and improves throughput for I/O-bound endpoints."
+    },
+    {
+      "n": 15,
+      "prompt": "One sentence on what a migration is.",
+      "reply": "It\u2019s a versioned script that reshapes a schema step by step while preserving the data."
+    },
+    {
+      "n": 16,
+      "prompt": "Should logs ever contain request bodies? Short answer.",
+      "reply": "No, never, bodies are sensitive data and should stay out of logs."
+    },
+    {
+      "n": 17,
+      "prompt": "What did I say my service is called?",
+      "reply": "You haven't mentioned a name for it yet."
+    },
+    {
+      "n": 18,
+      "prompt": "Which Postgres version did I mention?",
+      "reply": "You didn't specify a PostgreSQL version."
+    },
+    {
+      "n": 19,
+      "prompt": "Who reviews my pull requests?",
+      "reply": "The records don't show a reviewer assigned to your pull requests."
+    }
+  ]
+}
