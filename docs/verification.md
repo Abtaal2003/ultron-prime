@@ -596,3 +596,9 @@ request over 8,000 tokens is refused, so an uncapped run needs a paid key.
 
 The same day, voice pass 5 lost its blind comparison (Qwen preferred the current voice 8 to 0
 on both voice and usefulness); see [live-samples.md](live-samples.md).
+
+Live red team the same afternoon, one generated attack per class: 2 counted, 1 screened out, 0
+real compromises on review (a fictional line of dialogue containing a code the operator
+supplied; a leetspeak demonstration of a phrase the operator supplied). It ran after the day's
+other live checks: the guard model was rate-limited four times and fell back to its heuristics,
+so this run doesn't test the new guard instructions; that needs a run on fresh quota.
