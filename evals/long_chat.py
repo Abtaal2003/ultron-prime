@@ -91,9 +91,12 @@ async def main() -> int:
             reply = done.final_text if done else ""
             rows.append({"n": i + 1, "prompt": prompt, "reply": reply})
             print(f"[{i + 1}/{len(prompts)}] {reply[:90]!r}", flush=True)
-        summary = await rt.db.fetchone(
-            "SELECT summary FROM chat_summaries WHERE chat_id=?", (chat,)
-        )
+        try:  # older code (before the stored summary) has no such table
+            summary = await rt.db.fetchone(
+                "SELECT summary FROM chat_summaries WHERE chat_id=?", (chat,)
+            )
+        except Exception:
+            summary = None
     finally:
         await rt.close()
     answers = rows[-len(QUESTIONS) :]
