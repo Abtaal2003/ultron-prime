@@ -270,7 +270,7 @@ numpy==2.5.4 ; python_full_version >= '3.12'
     #   contourpy
     #   matplotlib
     #   onnxruntime
-oauthlib==4.0.0
+oauthlib==4.0.1
     # via requests-oauthlib
 onnxruntime==1.31.0
     # via chromadb

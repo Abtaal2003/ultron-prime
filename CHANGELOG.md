@@ -70,7 +70,7 @@ The first release meant for other people to run.
 * Sign-in refused on any port but 8787 ("origin not allowed").
 * An empty reply after rate limits blamed the request size; it now says the models are rationed,
   and names any file the turn had already saved.
-* pypdf and pyasn1 upgraded for new advisories (pypdf parses uploaded PDFs).
+* pypdf, pyasn1 and oauthlib upgraded for new advisories (pypdf parses uploaded PDFs).
 * The header named a main model that had no key.
 * Oversized requests on Groq's free tier: requests are sized before sending, trimmed in two
   stages, and passed to a fallback with room when the primary still refuses.
