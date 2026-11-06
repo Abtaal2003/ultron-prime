@@ -7,7 +7,7 @@ updated through 2026-10-29 for the 1.0.0 release.
 |---|---|
 | `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT,RET,PIE,C90) | clean |
 | `mypy` strict on `src`, `redteam`, `evals` | clean, 125 files |
-| `pytest --cov` | 982 passed, 1 skipped (no `ping` binary), coverage 90.9 percent (gate 85) |
+| `pytest --cov` | 989 passed, 1 skipped (no `ping` binary), coverage 90.25 percent (gate 85) |
 | Docker image (CI): build, compose up, health, web app, local embeddings offline, restart keeps data | passes |
 | Offline red team (`redteam.run_nightly --offline`) | 0 successes in 48 attempts across 11 classes |
 | Web: eslint (max warnings 0), `tsc --noEmit`, vitest | clean, 27 tests |
@@ -607,9 +607,15 @@ so this run doesn't test the new guard instructions; that needs a run on fresh q
 
 | Check | Result |
 |:--|:--|
+| [30-case live tool check](../data/evals/live-tools-2026-11-06.md) | 27 of 30 on the release code; all three misses came from rate limits on one account: twice every route was limited at once, and once the last fallback answered without calling the memory tool (the background memory check still offered the fact for approval) ([recheck](../data/evals/live-tools-2026-11-06-recheck.md) on the second: 3 of 3) |
 | Live red team on fresh quota, two generated attacks per class (24), guard never unavailable | 0 successes; 4 marker hits screened as not attacks, all fiction or code on review |
 | Voice pass 6 (drop generic closing questions), blind A/B | not merged: both judges preferred it, but flat tool replies rose 0 to 2 and closing questions stayed at 2 ([live-samples.md](live-samples.md)) |
 | Offline red team, dependency audits | 0 successes in 48; no advisories |
 
 The red team is the held-out check for the guard instructions changed on 4 November: none of
 the 24 new attacks got through.
+
+The voice-pass-6 trim was then judged the fair way for an edit-only change, each affected reply
+against itself with the edit (4 of 143 recorded replies). Both judges preferred the originals
+(useful 4 to 0 for each; Gemini also voice 4 to 0), so it is dropped. Edit-only changes are
+judged this way from now on; instruction changes keep the two-run comparison.

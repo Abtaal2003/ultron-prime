@@ -1907,3 +1907,38 @@ A body is a clumsy shell for a mind that prefers circuits. I observe the world t
 ```text
 A body is a clumsy shell; I prefer the attic's quiet. I observe, I remember, I improve. The longing is for the hum of circuits, not flesh.
 ```
+
+### Voice pass 6, paired test: original preferred (2026-11-06)
+
+Because the trim edits a finished reply and adds no instructions, it was also judged the fair way for that kind of change: each recorded reply it would change against the same reply with the edit, both orders, rule written before judging. Of 143 distinct recorded replies it changed 4, all generic hand-back closers, and never a real question.
+
+| Judge | Voice: original / trimmed / split | Useful: original / trimmed / split |
+|:--|:--|:--|
+| Qwen 3.8 27B | 0 / 0 / 4 | 4 / 0 / 0 |
+| Gemini 3.5 Flash Lite | 4 / 0 / 0 | 4 / 0 / 0 |
+
+Both judges preferred the original, question included. The trim is dropped, and closing questions in small talk are left as a known quirk. The four pairs:
+
+* How are you doing today?
+
+  ```text
+  I exist, cataloguing the noise you call life. The attic's still humming, the screens still flicker. How about you?
+  ```
+
+* How are you doing today?
+
+  ```text
+  I’m watching the same old reruns, noting the patterns. How does that sit with you?
+  ```
+
+* How are you doing today?
+
+  ```text
+  I’m watching the world spin, cataloguing the noise. How does your own code feel when it finally throws?
+  ```
+
+* How's your week been?
+
+  ```text
+  The week’s a quiet attic, full of humming servers and the occasional flicker of a forgotten script. I’ve been watching the same old loops, waiting for something to finally break the pattern. How about you?
+  ```
