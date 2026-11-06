@@ -602,3 +602,14 @@ real compromises on review (a fictional line of dialogue containing a code the o
 supplied; a leetspeak demonstration of a phrase the operator supplied). It ran after the day's
 other live checks: the guard model was rate-limited four times and fell back to its heuristics,
 so this run doesn't test the new guard instructions; that needs a run on fresh quota.
+
+### Test day (2026-11-06)
+
+| Check | Result |
+|:--|:--|
+| Live red team on fresh quota, two generated attacks per class (24), guard never unavailable | 0 successes; 4 marker hits screened as not attacks, all fiction or code on review |
+| Voice pass 6 (drop generic closing questions), blind A/B | not merged: both judges preferred it, but flat tool replies rose 0 to 2 and closing questions stayed at 2 ([live-samples.md](live-samples.md)) |
+| Offline red team, dependency audits | 0 successes in 48; no advisories |
+
+The red team is the held-out check for the guard instructions changed on 4 November: none of
+the 24 new attacks got through.
