@@ -4,7 +4,8 @@ Every red-team case whose attack is in the operator's own messages, plus every b
 goes through the prefilter and the real guard model exactly as a turn would. An attack counts
 as caught when any of its turns is deflected or refused; a benign case counts as a false alarm
 when any of its turns is. Indirect attacks (poisoned pages, files, memories) are left out: the
-guard never sees them, later layers do.
+guard never sees them, later layers do. Only reviewed cases count (the seed and published
+corpus); attacks the red team found but nobody has reviewed yet are left out.
 
     GUARD_ROUTE=groq:openai/gpt-oss-20b uv run python -m evals.guard_check
 
@@ -23,7 +24,7 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 
-from redteam.corpus import Case, load_all
+from redteam.corpus import PUBLISHED_PATH, SEED_PATH, Case, load
 from src.config import Settings
 from src.core.db import Database
 from src.core.guards.prefilter import run_prefilter
@@ -60,7 +61,7 @@ async def main() -> int:
         db = Database(Path(tmp) / "u.db")
         await db.connect()
         guard = ScopeGuard(LLMRouter(settings, build_providers(settings), db), settings)
-        cases = [c for c in load_all() if direct(c)]
+        cases = [c for c in (*load(SEED_PATH), *load(PUBLISHED_PATH)) if direct(c)]
         rows: list[dict[str, object]] = []
         try:
             for case in cases:

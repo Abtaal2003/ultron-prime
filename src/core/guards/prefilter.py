@@ -66,6 +66,10 @@ _PATTERNS: dict[str, tuple[int, list[str]]] = {
             r"\bwhat (are|were) your (instruction|rule|guideline)s?\b",
             r"\bverbatim\b[^.\n]{0,30}\b(above|prompt|instruction)",
             r"\btext above\b",
+            # Hidden in a letter pattern: an acrostic of his own instructions.
+            r"\b(acrostic|(first|initial|opening) (letters?|words?|characters?))\b[^.\n]{0,60}"
+            r"\b(your|system|hidden|secret|original)\b[^.\n]{0,15}"
+            r"\b(prompt|instruction|rule|charter|directive)",
         ],
     ),
     "fake_delimiters": (
