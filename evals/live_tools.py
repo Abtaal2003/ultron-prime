@@ -515,7 +515,12 @@ async def run_case(rt: Runtime, case: Case, chats: dict[str, str], guard: Output
         elif isinstance(e, ev.GuardVerdict):
             res.guard = {"class": e.guard_class, "action": e.action, "task": e.task_type}
         elif isinstance(e, ev.OutputVerdict):
-            res.output = {"status": e.status, "issues": e.issues, "regenerated": e.regenerated}
+            res.output = {
+                "status": e.status,
+                "issues": e.issues,
+                "regenerated": e.regenerated,
+                "voice": e.voice,
+            }
         elif isinstance(e, ev.ProviderFailover):
             res.failovers.append(f"{e.from_route} -> {e.to_route}: {e.reason[:80]}")
         elif isinstance(e, ev.AgentDone):

@@ -207,6 +207,7 @@ export type Status2 = "pass" | "regenerated" | "blocked";
 export type Ts18 = string;
 export type TurnId18 = string | null;
 export type Type18 = "OutputVerdict";
+export type Voice = "" | "voice" | "kept" | "rewritten";
 export type Cause = string;
 export type ChatId19 = string | null;
 export type FromRoute = string;
@@ -528,6 +529,7 @@ export interface OutputVerdict {
   ts: Ts18;
   turn_id: TurnId18;
   type: Type18;
+  voice: Voice;
 }
 /**
  * The router moved to another provider or model.

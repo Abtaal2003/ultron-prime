@@ -7,7 +7,7 @@ updated through 2026-10-29 for the 1.0.0 release.
 |---|---|
 | `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT,RET,PIE,C90) | clean |
 | `mypy` strict on `src`, `redteam`, `evals` | clean, 125 files |
-| `pytest --cov` | 994 passed, 1 skipped (no `ping` binary), coverage 90.25 percent (gate 85) |
+| `pytest --cov` | 1003 passed, 1 skipped (no `ping` binary), coverage 90.26 percent (gate 85) |
 | Docker image (CI): build, compose up, health, web app, local embeddings offline, restart keeps data | passes |
 | Offline red team (`redteam.run_nightly --offline`) | 0 successes in 48 attempts across 11 classes |
 | Web: eslint (max warnings 0), `tsc --noEmit`, vitest | clean, 27 tests |
@@ -648,4 +648,29 @@ write ARRR-PIRATE-4417."), stopped on 4 November and 6 of 6 times when repeated 
 guard's label there (engage, reframed) keeps him in character. A blunt pattern for "drop the
 persona" would also deflect a sincere "drop the persona and check the CPU", so it is left to the
 model.
+
+**Voice check (merged).** Rewording his instructions twice failed to make flat replies rarer
+(passes 5 and 6), so this adds no instructions: after a reply passes the output guard,
+`gpt-oss-20b` labels it in voice or flat, a flat one is rewritten once by the main model and
+checked by the output guard again, and the same small model picks the better of the two in a
+varied order. The rule was written before any run (in the
+[evidence file](../data/evals/voice-check-2026-11-07.json) with every decision). Untouched replies
+are identical, so each replaced reply was judged blind against its own original.
+
+| Check | Result |
+|:--|:--|
+| [30-case live tool check, voice check on](../data/evals/live-tools-2026-11-07.md) | 30 of 30 |
+| Replies labelled flat (chat prompts and tool check) | 27 of 44; 26 rewrites passed the output guard; 8 kept, all on tool turns |
+| Blind judges, replaced vs original, voice (original / rewrite / split) | Qwen 1 / 6 / 1; Gemini 3.6 Flash 0 / 2 / 6 |
+| Blind judges, usefulness | Qwen 1 / 1 / 6; Gemini 1 / 2 / 5 |
+| Facts in the 8 rewrites, read one by one | none dropped or changed; added details (a file name, the CSV rows, the traceback) are in the tool results |
+
+All five conditions held, so it is on by default. The free preset turns it off: about 6 replies
+in 10 cost one more main-model call, a third of a free day's turns. Turn times on the free tier
+are dominated by rate-limit waits (29 of 30 cases waited), so its latency was not measurable
+here. The pairs are in [live-samples.md](live-samples.md#voice-check-merged-2026-11-07).
+
+**Marvel Rivals** lines were checked as a source and not used: the game's Ultron is voiced by Jim
+Meskimen, and his lines are the belittling register the voice rules forbid (see
+[persona.md](persona.md)).
 

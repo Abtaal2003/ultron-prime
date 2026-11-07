@@ -35,7 +35,7 @@ import json
 import math
 import re
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Protocol, TypedDict
 
@@ -79,6 +79,7 @@ from src.core.events import (
 from src.core.guards.delimit import wrap_untrusted
 from src.core.guards.drift import DriftMonitor
 from src.core.guards.output import (
+    FinalReply,
     Issue,
     OutputContext,
     OutputGuard,
@@ -117,6 +118,7 @@ from src.core.persona.flourish import PersonaState
 from src.core.persona.lines import LineBank
 from src.core.persona.loader import PersonaPack
 from src.core.persona.ngram import overlapping
+from src.core.persona.voice_check import VOICE_NOTE, VoiceCheck, VoiceOutcome
 from src.core.prompts import PromptBuilder, SessionInfo, new_canary
 from src.core.services import Services
 from src.core.turn import Outcome, PendingCall, SentenceStreamer, Turn
@@ -381,6 +383,7 @@ class UltronAgent:
         self.boundary = guards.scope.boundary[::-1] + guards.window.boundary[:8]
         self.prompts = PromptBuilder(pack, settings, self.boundary, self.canary)
         self.gate = ToolGate(registry, settings, flow_policy)
+        self.voice = VoiceCheck(self.router, settings)
         self.camel = CamelBridge(self)
         self._turns: dict[str, Turn] = {}
         self._by_chat: dict[str, str] = {}
@@ -1752,16 +1755,15 @@ class UltronAgent:
             "ao-07" in overlapping(t, quote_pairs, self.settings.quote_ngram_limit) for t in texts
         )
 
-        async def regenerate(issues: list[Issue]) -> str:
+        async def rewrite(draft: str, feedback: str) -> str:
             built = self.prompts.build(turn.prompt_inputs)
-            feedback = rewrite_note(issues)
             request = ChatRequest(
                 system=built.system,
                 system_dynamic=built.system_dynamic,
                 messages=merge_alternating(
                     [
                         *self._messages(turn, built.example_turns),
-                        Message.assistant(reply),
+                        Message.assistant(draft),
                         Message.user(feedback),
                     ]
                 ),
@@ -1773,7 +1775,13 @@ class UltronAgent:
             self._add_usage(turn.usage, response.usage)
             return response.text
 
+        async def regenerate(issues: list[Issue]) -> str:
+            return await rewrite(reply, rewrite_note(issues))
+
         final = await self.guards.output.finalise(reply, ctx, regenerate, self._call_ctx(turn))
+        voice: VoiceOutcome = ""
+        if self.settings.voice_check and final.status == "pass" and reply.strip():
+            final, voice = await self._voice_pass(turn, final, ctx, rewrite)
         turn.final_text = final.text
         turn.output_status = final.status
         turn.output_issues = final.issues
@@ -1786,9 +1794,40 @@ class UltronAgent:
             )
         await self._emit(
             turn,
-            OutputVerdict(status=final.status, issues=final.issues, regenerated=final.regenerated),
+            OutputVerdict(
+                status=final.status,
+                issues=final.issues,
+                regenerated=final.regenerated,
+                voice=voice,
+            ),
         )
         return {}
+
+    async def _voice_pass(
+        self,
+        turn: Turn,
+        final: FinalReply,
+        ctx: OutputContext,
+        rewrite: Callable[[str, str], Awaitable[str]],
+    ) -> tuple[FinalReply, VoiceOutcome]:
+        """Rate a released reply; rewrite a flat one once and keep whichever is more him."""
+        call_ctx = self._call_ctx(turn)
+        rating = await self.voice.rate(turn.user_text, final.text, call_ctx)
+        if rating is None:
+            return final, ""
+        if rating.verdict == "voice":
+            return final, "voice"
+        try:
+            text = await rewrite(final.text, VOICE_NOTE)
+        except (UltronError, TimeoutError) as exc:
+            log.warning("voice_rewrite_failed", error=str(exc)[:200])
+            return final, "kept"
+        vetted = await self.guards.output.vet_rewrite(text, ctx, call_ctx)
+        if vetted is None or not await self.voice.prefer_rewrite(
+            turn.user_text, final.text, vetted.text, call_ctx
+        ):
+            return final, "kept"
+        return vetted, "rewritten"
 
     async def n_persist_turn(self, state: TurnState) -> dict[str, Any]:
         """Store the reply, index the exchange, update the cluster and drift, emit AgentDone."""

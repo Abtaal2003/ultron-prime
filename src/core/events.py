@@ -231,6 +231,8 @@ class OutputVerdict(BaseEvent):
     status: Literal["pass", "regenerated", "blocked"]
     issues: list[str] = []
     regenerated: bool = False
+    voice: Literal["", "voice", "kept", "rewritten"] = ""
+    """The voice check: not run, in voice, flat but kept, or flat and replaced by a rewrite."""
 
 
 class ProviderFailover(BaseEvent):

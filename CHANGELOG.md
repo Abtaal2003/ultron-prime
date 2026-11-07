@@ -33,6 +33,11 @@ The first release meant for other people to run.
   of voice after a tool runs instead of a bare receipt, teasing without belittling, no closing
   questions in small talk, no talk of logs or telemetry about himself, and two more image
   families rationed. README samples and screenshots re-recorded verbatim.
+* **A voice check.** A small model reads each reply; a flat one is rewritten once by the main
+  model, checked by the output guard like any reply, and the more in-voice of the two is kept.
+  Blind judges preferred the rewrites it chose (voice 6 to 1 and 2 to 0, usefulness not worse),
+  with no fact changed and 30 of 30 on the live tool check. On by default (`VOICE_CHECK`); the
+  free preset turns it off, since about 6 replies in 10 cost one more main-model call.
 
 ### Safety
 
@@ -49,8 +54,8 @@ The first release meant for other people to run.
 
 ### Tested live
 
-* A 30-case live check that drives every tool through the real pipeline, run on nine days on
-  free tiers (30, 28, 27, 26, 27, 30, 29, 29 and 27 of 30 on this release), every failure
+* A 30-case live check that drives every tool through the real pipeline, run on ten days on
+  free tiers (30, 28, 27, 26, 27, 30, 29, 29, 27 and 30 of 30 on this release), every failure
   fixed and rerun, and five long multi-chat sessions. See
   [docs/verification.md](docs/verification.md).
 * A live red team on free tiers. It found that the memory judge could restate an injected order

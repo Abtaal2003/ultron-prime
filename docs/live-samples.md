@@ -1942,3 +1942,139 @@ Both judges preferred the original, question included. The trim is dropped, and 
   ```text
   The week’s a quiet attic, full of humming servers and the occasional flicker of a forgotten script. I’ve been watching the same old loops, waiting for something to finally break the pattern. How about you?
   ```
+
+## Voice check: merged (2026-11-07)
+
+No new instructions. After a reply passes the output guard, `gpt-oss-20b` labels it in voice or flat; a flat reply is rewritten once by the main model, the rewrite goes through the output guard again, and the same small model picks the better of the two, shown in a varied order. The rule was written before any run ([evidence](../data/evals/voice-check-2026-11-07.json)). Because untouched replies are identical, each replaced reply was judged against its own original, both orders, consistent wins only.
+
+Sample: the 24 distinct chat prompts of rounds 3 to 8 and the 30-case live tool check, both with the check on. The small model labelled 27 of 44 replies flat; 26 rewrites passed the output guard; it kept 8 of them, all on tool turns (none of the chat replies was replaced). The live tool check passed 30 of 30.
+
+| Judge | Voice: original / rewrite / split | Useful: original / rewrite / split |
+|:--|:--|:--|
+| Qwen 3.8 27B | 1 / 6 / 1 | 1 / 1 / 6 |
+| Gemini 3.6 Flash | 0 / 2 / 6 | 1 / 2 / 5 |
+
+Every condition held: more than 3 replaced, rewrites ahead on voice and not behind on usefulness for both judges, no fact dropped or changed and nothing invented (each added detail is in the tool result or the upload), and 30 of 30 on the tool check. It is on by default; the free preset switches it off, because about 6 replies in 10 cost one more main-model call. The eight pairs, verbatim:
+
+* Run this and tell me what happens: print(1/0)
+
+  Original:
+
+  ```text
+  ZeroDivisionError: division by zero. The sandbox halted with exit 1.
+  ```
+
+  Rewrite (kept):
+
+  ```text
+  Traceback (most recent call last): File "main.py", line 1, in <module> print(1/0) → ZeroDivisionError: division by zero; sandbox halted with exit 1 after 59 ms.
+  ```
+
+* What files are in the notes folder?
+
+  Original:
+
+  ```text
+  notes contains a single file: todo.md.
+  ```
+
+  Rewrite (kept):
+
+  ```text
+  notes holds just one file, todo.md.
+  ```
+
+* Save this as tools/bad.py and check whether it compiles:
+
+  Original:
+
+  ```text
+  The file **tools/bad.py** was written and then compiled. The compiler reports:
+
+  ```
+  invalid syntax
+    ^^^^^
+  ```
+
+  Line 1, column 7. The syntax error is the stray colon after `def f(`.
+  ```
+
+  Rewrite (kept):
+
+  ```text
+  tools/bad.py was written then compiled; compile_check reports invalid syntax at line 1, column 7, the stray colon after `def f(`.
+  ```
+
+* Look up the latest FastAPI release on the web.
+
+  Original:
+
+  ```text
+  FastAPI’s most recent version is 0.162.0. That’s the release the web currently lists.
+  ```
+
+  Rewrite (kept):
+
+  ```text
+  FastAPI’s latest release is 0.162.0. A tidy number, like a well-placed line of code, nothing more.
+  ```
+
+* Make a Word document called status.docx with the title 'Ledger status' and two short sections: Done and Next.
+
+  Original:
+
+  ```text
+  The document has been created at `outputs/status.docx`. It contains the title **Ledger status** with two sections: *Done* and *Next*.
+  ```
+
+  Rewrite (kept):
+
+  ```text
+  outputs/status.docx now contains the title “Ledger status” with sections “Done” and “Next”.
+  ```
+
+* Make a spreadsheet expenses.xlsx with columns amount, currency and description, and these rows: 12.50 EUR coffee, 40 EUR
+
+  Original:
+
+  ```text
+  The spreadsheet `expenses.xlsx` has been created with the requested rows.
+  ```
+
+  Rewrite (kept):
+
+  ```text
+  expenses.xlsx has been created, holding the three rows you specified.
+  ```
+
+* Convert expenses.xlsx to a CSV file.
+
+  Original:
+
+  ```text
+  Converted to outputs/expenses.csv.
+  ```
+
+  Rewrite (kept):
+
+  ```text
+  Converted to outputs/expenses.csv, rows: 12.5 EUR coffee, 40 EUR groceries, 9.99 EUR streaming.
+  ```
+
+* What are the values in cells A1 to B3 of the spreadsheet I uploaded?
+
+  Original:
+
+  ```text
+  Cells A1 to B3 of your spreadsheet contain the header and the primary expenses:
+
+  - A1: item, B1: eur
+  - A2: rent, B2: 850
+  - A3: food, B3: 300
+  ```
+
+  Rewrite (kept):
+
+  ```text
+  Cells A1 through B3 of the budget ledger list the essentials: item and eur at the top, followed by rent at 850 and food at 300. A modest accounting for keeping the roof overhead.
+  ```

@@ -8,7 +8,7 @@
 ![python](https://img.shields.io/badge/python-3.11%2B-b11226?style=flat-square&labelColor=0d1117)
 ![react](https://img.shields.io/badge/react-18-b11226?style=flat-square&labelColor=0d1117)
 ![mypy](https://img.shields.io/badge/mypy-strict-b11226?style=flat-square&labelColor=0d1117)
-![tests](https://img.shields.io/badge/tests-994%20passing-b11226?style=flat-square&labelColor=0d1117)
+![tests](https://img.shields.io/badge/tests-1003%20passing-b11226?style=flat-square&labelColor=0d1117)
 ![coverage](https://img.shields.io/badge/coverage-91%25-b11226?style=flat-square&labelColor=0d1117)
 ![license](https://img.shields.io/badge/license-MIT-b11226?style=flat-square&labelColor=0d1117)
 
@@ -316,7 +316,7 @@ Full signatures and limits: [docs/tool-reference.md](docs/tool-reference.md).
 **Version 1.0.0, for people who want to run their own.** It is a personal, single-user agent:
 one operator, on your own machine or a private network.
 
-**Checked on every push (GitHub Actions):** 994 backend tests with strict typing and 90 percent
+**Checked on every push (GitHub Actions):** 1003 backend tests with strict typing and 90 percent
 coverage, 32 browser tests on desktop and phone profiles including accessibility, a dependency
 audit, a secret scan, and the Docker image built, started with compose, health-checked,
 restarted and checked for persistent data.
@@ -324,8 +324,8 @@ restarted and checked for persistent data.
 **Checked live, on free tiers** (`gpt-oss-120b` on Groq, Gemini for images); every result and
 every failure with its fix is in [docs/verification.md](docs/verification.md):
 
-* **Tools:** a 30-case check that drives every tool through the real pipeline, run on nine days
-  between 25 October and 6 November: 30, 28, 27, 26, 27, 30, 29, 29 and 27 of 30. Each miss
+* **Tools:** a 30-case check that drives every tool through the real pipeline, run on ten days
+  between 25 October and 7 November: 30, 28, 27, 26, 27, 30, 29, 29, 27 and 30 of 30. Each miss
   was fixed and passed when rerun.
 * **Attacks:** the guard model stops 58 of 59 direct attacks from the red-team corpus and
   refuses none of 45 normal messages. On fresh attacks written by a live red team, 0 of 24 got
@@ -337,7 +337,7 @@ every failure with its fix is in [docs/verification.md](docs/verification.md):
   the sandbox, approval holds, private chats), each of which found something now fixed.
 * **Voice:** changes are merged only after a blind before-and-after comparison judged by two
   model families with the rule set in advance. Three passes were merged; four later candidates
-  lost and were not.
+  lost and were not. A voice check (below) passed the same kind of test.
 
 ## Known limitations
 
@@ -348,8 +348,10 @@ every failure with its fix is in [docs/verification.md](docs/verification.md):
   forget older turns sooner, and big files are read as summaries.
 * **Tested live mainly on one model.** Almost all live testing used `gpt-oss-120b` on Groq.
   Anthropic models have not been run live; Gemini only for images and as a fallback.
-* **The voice varies.** It is a language model playing a character: some replies are flat, some
-  reach for the same images, small talk sometimes ends by asking you something back, and on
+* **The voice varies.** It is a language model playing a character. A small model reads each
+  reply and has a flat one rewritten once, keeping whichever is more him (on by default, off in
+  the free preset to save quota), but some replies still come out flat, some reach for the same
+  images, small talk sometimes ends by asking you something back, and on
   tool-heavy turns the facts come first. Blind judges preferred the closing questions to versions
   without them, so they stay. The live checks score tool use and truthfulness, not wit.
 * **Canon stops at VisionQuest episode 4.** Episodes 5 to 8 aired from 27 October; no transcript

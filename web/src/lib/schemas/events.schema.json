@@ -1085,6 +1085,17 @@
           "default": "OutputVerdict",
           "title": "Type",
           "type": "string"
+        },
+        "voice": {
+          "default": "",
+          "enum": [
+            "",
+            "voice",
+            "kept",
+            "rewritten"
+          ],
+          "title": "Voice",
+          "type": "string"
         }
       },
       "required": [
@@ -1095,7 +1106,8 @@
         "type",
         "status",
         "issues",
-        "regenerated"
+        "regenerated",
+        "voice"
       ],
       "title": "OutputVerdict",
       "type": "object"

@@ -749,6 +749,22 @@ class OutputGuard:
             text, "regenerated", names, regenerated=True, callback_used=second.callback_used
         )
 
+    async def vet_rewrite(
+        self, text: str, ctx: OutputContext, call_ctx: CallContext | None = None
+    ) -> FinalReply | None:
+        """Check a voice rewrite like any reply. None when it would need fixing or blocking."""
+        if not text.strip():
+            return None
+        check = await self._full_check(text, ctx, call_ctx)
+        if check.blocked or (check.needs_regeneration and not _only_style(check)):
+            return None
+        out = check.text
+        if any(i.name == "closing_offer" for i in check.issues):
+            out = drop_chat_offers(out, ctx)
+        return FinalReply(
+            out, "pass", [i.name for i in check.issues], callback_used=check.callback_used
+        )
+
     async def _full_check(
         self, reply: str, ctx: OutputContext, call_ctx: CallContext | None
     ) -> OutputCheck:

@@ -105,6 +105,7 @@ class Settings(BaseSettings):
     route_memory_judge: str = "anthropic:claude-sonnet-5-5"
     route_summarizer: str = "groq:openai/gpt-oss-20b"
     route_persona_eval_judge: str = "gemini:gemini-3.5-flash"
+    route_voice_judge: str = "groq:openai/gpt-oss-20b"
     route_quarantine_reader: str = "groq:openai/gpt-oss-20b"
     route_quarantine_reader_vision: str = "gemini:gemini-3.5-flash"
     route_vision_fallback: str = "gemini:gemini-3.5-flash"
@@ -156,6 +157,8 @@ class Settings(BaseSettings):
     persona_canon_through: str = ""  # empty: use the persona file's canon_through
     persona_profanity: Literal["sparing", "off"] = "sparing"
     persona_quote_callbacks: bool = True
+    # A small model reads each reply; a flat one is rewritten once and the better one kept.
+    voice_check: bool = True
     persona_era_weight_visionquest: float = Field(0.7, ge=0, le=1)
     style_anchors_k: int = Field(3, ge=0, le=6)
     quote_ngram_limit: int = Field(8, ge=3)
@@ -261,6 +264,7 @@ class Settings(BaseSettings):
         "route_memory_judge",
         "route_summarizer",
         "route_persona_eval_judge",
+        "route_voice_judge",
         "route_quarantine_reader",
         "route_quarantine_reader_vision",
         "route_vision_fallback",
@@ -340,6 +344,7 @@ class Settings(BaseSettings):
             "memory_judge": self.route_memory_judge,
             "summarizer": self.route_summarizer,
             "persona_eval_judge": self.route_persona_eval_judge,
+            "voice_judge": self.route_voice_judge,
             "quarantine_reader": self.route_quarantine_reader,
             "quarantine_reader_vision": self.route_quarantine_reader_vision,
             "vision_fallback": self.route_vision_fallback,

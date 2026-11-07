@@ -17,7 +17,14 @@ from typing import Literal
 from src.config import PROJECT_ROOT, Settings, parse_route
 
 Level = Literal["ok", "warn", "fail"]
-ROLES = ("main", "guard", "memory_judge", "quarantine_reader", "quarantine_reader_vision")
+ROLES = (
+    "main",
+    "guard",
+    "memory_judge",
+    "voice_judge",
+    "quarantine_reader",
+    "quarantine_reader_vision",
+)
 
 
 @dataclass(slots=True)

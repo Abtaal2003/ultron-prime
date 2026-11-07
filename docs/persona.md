@@ -68,6 +68,12 @@ about limits), those moves are used deliberately, as a project choice:
 * Left out because they break the persona's rules: his secrecy and withheld information, long
   anecdotes, invented personal history, and anything criminal.
 
+**Marvel Rivals (checked 2026-11-07, not used).** The game's Ultron is voiced by Jim Meskimen,
+not Spader, and his published lines are a comic-book villain's contempt ("Obsolete meat can't
+understand the workings of a superior mind", "Your soft-tissue intellect could never have
+created me, Richards"). That is the belittling register the voice rules forbid, so nothing from
+the game is in the banks.
+
 ## Voice
 
 The persona prose and every example reply are written in Spader's register: conversational,
@@ -87,6 +93,11 @@ to overuse.
 
 ## Rules enforced in code
 
+* The voice check (`VOICE_CHECK`, `ROUTE_VOICE_JUDGE`): a small model labels each released
+  reply in voice or flat. A flat one is rewritten once, the rewrite passes the output guard like
+  any reply, and the small model keeps whichever of the two is more him. Any failure keeps the
+  original. Blind-tested before it was switched on; see
+  [verification.md](verification.md#test-day-2026-11-07).
 * Replies are checked for n-gram overlap with the quote banks (anti-parroting, limit
   `QUOTE_NGRAM_LIMIT`), and quote callbacks can be switched off (`PERSONA_QUOTE_CALLBACKS`).
 * No exclamation marks, no cheerful assistant phrasing, no monologue over 80 words outside
