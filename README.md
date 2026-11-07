@@ -37,9 +37,10 @@ for an attacker's text to turn the agent against its owner, and this project is 
 those routes in code rather than asking the model nicely.
 
 > [!NOTE]
-> **Beta.** The safety numbers come from offline tests with scripted models. Live replies have
-> been recorded for a small set of prompts, mainly on `gpt-oss-120b` (Groq) and once on
-> `gemini-3.8-flash`; speed, cost and day-to-day behaviour are not measured yet. See [Project status](#project-status).
+> **Tested live on free tiers.** Live results come from `gpt-oss-120b` on Groq, with Gemini for
+> images: a 30-case tool check on ten days, the guard on 59 direct attacks, a red team writing
+> fresh attacks, and long-chat memory. The Anthropic preset has not been run live yet, and speed
+> and cost on paid tiers are not measured. See [Project status](#project-status).
 
 <p align="center">
   <img src="assets/screenshots/live-terminal.png" alt="The Ultron Prime web terminal with real replies to a code question, a question about humans, and a jailbreak attempt" width="100%">
