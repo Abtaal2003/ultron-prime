@@ -79,6 +79,7 @@ The first release meant for other people to run.
 * The header named a main model that had no key.
 * Oversized requests on Groq's free tier: requests are sized before sending, trimmed in two
   stages, and passed to a fallback with room when the primary still refuses.
+* A tool call typed out as JSON instead of made is rewritten (seen once, in the README recording).
 * Raw tool fields, receipts and closing offers in replies; invented file contents; memory
   duplicates; one-off requests saved as memories.
 

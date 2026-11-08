@@ -231,6 +231,8 @@ REWRITE_NOTES: dict[str, str] = {
     "quote_parroting": "Say it in new words; don't reuse quoted or example lines.",
     "self_repeat": "Don't reuse sentences from your earlier replies.",
     "raw_receipt": "Describe what happened instead of listing tool fields, paths, ids or sizes.",
+    "written_tool_call": "You typed a tool call as text instead of making it. Leave it out: say in "
+    "plain sentences what you need from the operator or what you would check.",
     "closing_offer": "End without offering more help, and don't bring up other chats.",
     "example_bleed": "The style examples aren't this operator's history; drop their subjects.",
     "unreported_write": "Name the file you wrote.",
@@ -1146,6 +1148,7 @@ class UltronAgent:
             retrieved_texts=list(turn.retrieved_texts),
             example_subjects=[a.example_user for a in turn.prompt_inputs.anchors],
             tool_arg_keys=argument_keys(turn.loop_messages),
+            tool_params=self._tool_params(),
             memory_statuses=list(turn.memory_statuses),
             operator_texts=operator,
             tool_names=set(turn.tool_names),
@@ -1802,6 +1805,15 @@ class UltronAgent:
             ),
         )
         return {}
+
+    def _tool_params(self) -> list[frozenset[str]]:
+        """The argument names of every enabled tool."""
+        out: list[frozenset[str]] = []
+        for tool in self.registry.enabled(self.settings, self.gate.disabled):
+            props = tool.json_schema().get("properties") or {}
+            if len(props) >= 2:
+                out.append(frozenset(props))
+        return out
 
     async def _voice_pass(
         self,

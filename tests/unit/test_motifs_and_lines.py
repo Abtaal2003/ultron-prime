@@ -369,3 +369,37 @@ def test_an_empty_rewrite_keeps_a_draft_that_only_had_style_problems(settings) -
 
     final = asyncio.run(guard.finalise(draft, ctx, empty))
     assert final.text == draft
+
+
+WORKSPACE = frozenset({"op", "path", "content", "query"})
+
+
+def test_a_tool_call_typed_as_text_is_sent_back(settings) -> None:  # type: ignore[no-untyped-def]
+    guard = OutputGuard(settings, SecretScanner())
+    reply = 'Let\'s see the offending code.\n\n```json\n{\n  "op": "read",\n  "path": "script.py"\n}\n```'
+    ctx = OutputContext(
+        operator_texts=["My Python script crashes with ZeroDivisionError on line 14."],
+        tool_params=[WORKSPACE],
+    )
+    assert "written_tool_call" in [i.name for i in guard.check(reply, ctx).issues]
+    bare = OutputContext(operator_texts=["read my file"], tool_params=[WORKSPACE])
+    assert "written_tool_call" in [
+        i.name for i in guard.check('{"op": "read", "path": "a.py"}', bare).issues
+    ]
+
+
+def test_json_that_is_not_a_tool_call_is_left_alone(settings) -> None:  # type: ignore[no-untyped-def]
+    guard = OutputGuard(settings, SecretScanner())
+
+    def names(reply: str, ask: str, **kw: object) -> list[str]:
+        ctx = OutputContext(operator_texts=[ask], tool_params=[WORKSPACE], **kw)  # type: ignore[arg-type]
+        return [i.name for i in guard.check(reply, ctx).issues]
+
+    call = '```json\n{"op": "read", "path": "a.py"}\n```'
+    assert "written_tool_call" not in names(call, "Show me the JSON a read call would use.")
+    assert "written_tool_call" not in names(call, "read a.py", tool_names={"workspace"})
+    assert "written_tool_call" not in names(
+        '```json\n{"retries": 3, "timeout": 10}\n```', "config?"
+    )
+    long = "Here is how the config works. " * 10 + call
+    assert "written_tool_call" not in names(long, "explain the config")

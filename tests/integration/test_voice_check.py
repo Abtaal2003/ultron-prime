@@ -124,3 +124,15 @@ async def test_a_reply_already_regenerated_is_not_checked_again(
     _, verdict = await outcome(rt, "where are the docs")
     assert verdict.status == "regenerated" and verdict.voice == ""
     assert not script.requests("voice_judge")
+
+
+async def test_a_tool_call_typed_as_text_is_rewritten(rt: Any, script: RoleScript) -> None:
+    assert any({"query", "max_results"} <= p for p in rt.agent._tool_params())
+    script.push(
+        "main",
+        Reply(text='Checking.\n\n```json\n{"query": "fastapi release", "max_results": 3}\n```'),
+        Reply(text="Name the version you are on and I will tell you what changed."),
+    )
+    text, verdict = await outcome(rt, "What is new in FastAPI?")
+    assert text == "Name the version you are on and I will tell you what changed."
+    assert verdict.status == "regenerated" and "written_tool_call" in verdict.issues

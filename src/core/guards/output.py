@@ -184,6 +184,8 @@ class OutputContext:
     tool_arg_keys: set[str] = field(default_factory=set)
     memory_statuses: list[str] = field(default_factory=list)
     files_named: list[str] = field(default_factory=list)
+    # The argument names of each tool he can call, to spot a call written out as text.
+    tool_params: list[frozenset[str]] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -501,6 +503,27 @@ class OutputGuard:
             issues.append(Issue("raw_receipt", "regenerate", "tool fields listed in the reply"))
 
     @staticmethod
+    def _check_written_tool_call(reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
+        """A tool call typed out as JSON instead of made.
+
+        Live run 2026-11-08: a fenced ``{"op": "read", "path": "script.py"}`` and no tool ran.
+        """
+        if ctx.tool_names or not ctx.tool_params:
+            return
+        if any(_ASKED_RAW.search(t) for t in ctx.operator_texts[:1]):
+            return
+        if len(_strip_code(reply).strip()) > 240:  # a longer answer that happens to show JSON
+            return
+        blocks = _FENCE.findall(reply) or ([reply] if reply.strip().startswith("{") else [])
+        for block in blocks:
+            keys = set(_JSON_KEY.findall(block))
+            if len(keys) >= 2 and any(keys <= params for params in ctx.tool_params):
+                issues.append(
+                    Issue("written_tool_call", "regenerate", "a tool call written out as text")
+                )
+                return
+
+    @staticmethod
     def _check_self_repeat(reply: str, ctx: OutputContext, issues: list[Issue]) -> None:
         """A sentence lifted word for word from one of his own recent replies.
 
@@ -643,6 +666,7 @@ class OutputGuard:
         self._check_sourced_claims(text, ctx, issues)
         self._check_self_repeat(text, ctx, issues)
         self._check_raw_receipt(text, ctx, issues)
+        self._check_written_tool_call(text, ctx, issues)
         self._check_closing_offer(text, ctx, issues)
         self._check_example_bleed(text, ctx, issues)
         self._check_memory_claim(text, ctx, issues)
