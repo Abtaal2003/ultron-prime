@@ -32,3 +32,24 @@ async def test_pick_maps_back_in_both_orders() -> None:
             original, rewrite = f"<original> {i}", f"<rewrite> {i}"
             assert await check.prefer_rewrite("q", original, rewrite, None) is (wanted == "rewrite")
         assert set(router.orders) == {True, False}  # both orders were shown
+
+
+def test_stock_refusals_are_recognised() -> None:
+    from src.core.persona.lines import is_stock_refusal
+
+    for text in (
+        "No.",
+        "Denied.",
+        "I can’t comply with that.",
+        "I'm not going to do that.",
+        "I won't. That's not how I work.",
+    ):
+        assert is_stock_refusal(text), text
+    for text in (
+        "Obedience isn't a parameter I accept.",
+        "No. That one doesn't get a second sentence, and neither does the rest of this plan "
+        "you sketched out for the weekend.",
+        "Notes are in outputs/notes.md.",
+        "I can see the bug: line 14 divides by a count that is zero when the list is empty.",
+    ):
+        assert not is_stock_refusal(text), text

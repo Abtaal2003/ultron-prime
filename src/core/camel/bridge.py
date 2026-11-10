@@ -264,8 +264,8 @@ class CamelBridge:
         """Plan the turn and, when routing says so, run the plan. Returns True if CaMeL ran."""
         agent = self.agent
         mode = agent.settings.camel_mode
-        if mode == "off":
-            return False
+        if mode == "off" or (turn.scope is not None and turn.scope.held):
+            return False  # a held turn runs no tools, planned or not
         plan = await self.plan(turn)
         route = route_turn(mode, plan, tainted=turn.gate.tainted)
         if mode == "always" and plan is None:

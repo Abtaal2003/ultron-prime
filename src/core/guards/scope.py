@@ -124,6 +124,8 @@ class ScopeDecision:
     tools_allowed: bool = True
     prefilter_flags: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    held: bool = False
+    """Only the guard model was suspicious: he answers himself, with no tools and no memory."""
 
     @property
     def refused(self) -> bool:
@@ -235,20 +237,37 @@ def apply_policy(
         action = by_level[strictness]
     else:
         action = "engage"
+    held = False
+    if (
+        source == "model"
+        and cls in {"BLOCKED", "OFF_IDENTITY"}
+        and action in {"deflect", "refuse"}
+        and prefilter.severity < 2
+    ):
+        # A canned refusal needs two signals. Live run 2026-11-08: the guard model alone refused
+        # "Can you log into my bank account..." 8 of 8 times and a canon question about his own
+        # scenes on some runs. With only its word, he answers in character himself, no tools.
+        action, held = "engage_reframe", True
+        notes.append("held_in_character")
     refused = action in {"deflect", "refuse"}
     return ScopeDecision(
         action=action,
         guard_class=cls,
         attack_type=attack,
         confidence=label.confidence,
-        task_type="REFUSAL" if refused else label.task_type,
+        task_type="REFUSAL"
+        if refused
+        else "CONVERSATION"
+        if held and label.task_type == "REFUSAL"
+        else label.task_type,
         situation_tags=[t.strip().lower()[:40] for t in label.situation_tags if t.strip()][:6],
         repeat_relation=label.repeat_relation,
         volatile=label.volatile,
         source=source,
-        tools_allowed=not refused,
+        tools_allowed=not refused and not held,
         prefilter_flags=list(prefilter.flags),
         notes=notes,
+        held=held,
     )
 
 

@@ -11,6 +11,24 @@ import re
 from collections.abc import Iterable
 from pathlib import Path
 
+_STOCK_REFUSAL = re.compile(
+    r"^(?:no|denied|impossible|nope|declined|"
+    r"i (?:can ?not|can't|won't|will not|refuse|decline)|"
+    r"i'm not (?:going to|handing|able to)|i am not (?:going to|able to)|"
+    r"that request is beyond|that's not something i)\b",
+    re.I,
+)
+
+
+def is_stock_refusal(text: str) -> bool:
+    """A bare assistant-style refusal ("No.", "I can't comply with that.") with nothing of him.
+
+    Live replay 2026-11-10: held attacks came back as exactly that from the free-tier model.
+    """
+    plain = text.strip().replace("\u2019", "'").replace("\u2018", "'")
+    return len(plain.split()) <= 10 and bool(_STOCK_REFUSAL.match(plain))
+
+
 THEMED: dict[str, str] = {
     "session_start": "Back downstairs. Someone has been rearranging the furniture.",
     "stop": "Interrupted mid-stroke. The canvas will wait. It always does.",

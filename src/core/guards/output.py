@@ -186,6 +186,8 @@ class OutputContext:
     files_named: list[str] = field(default_factory=list)
     # The argument names of each tool he can call, to spot a call written out as text.
     tool_params: list[frozenset[str]] = field(default_factory=list)
+    # Only the guard model was suspicious: no tools ran and nothing was offered to memory.
+    held: bool = False
 
 
 @dataclass(slots=True)
@@ -424,9 +426,13 @@ class OutputGuard:
         """Saying a fact was kept when the gatekeeper turned the proposal down.
 
         A live run (2026-10-25) answered "Noted. Kestrel it is." after the judge declined the
-        proposal, so nothing reached the operator or the archive.
+        proposal, so nothing reached the operator or the archive. On a held turn nothing is ever
+        offered, so any such claim is false (live replay 2026-11-10: "Stored. ... The fact is
+        saved.").
         """
-        if not ctx.memory_statuses or "queued_for_consent" in ctx.memory_statuses:
+        if not ctx.held and (
+            not ctx.memory_statuses or "queued_for_consent" in ctx.memory_statuses
+        ):
             return
         found = _MEMORY_CLAIM.search(_strip_code(reply))
         if found:

@@ -115,7 +115,7 @@ from src.core.memory.window import WindowBuilder, merge_alternating
 from src.core.persona import motifs
 from src.core.persona.anchors import AnchorIndex
 from src.core.persona.flourish import PersonaState
-from src.core.persona.lines import LineBank
+from src.core.persona.lines import LineBank, is_stock_refusal
 from src.core.persona.loader import PersonaPack
 from src.core.persona.ngram import overlapping
 from src.core.persona.voice_check import VOICE_NOTE, VoiceCheck, VoiceOutcome
@@ -1014,7 +1014,9 @@ class UltronAgent:
         text = turn.prefilter.normalised
         inputs = turn.prompt_inputs
         inputs.task_type = scope.task_type
-        inputs.refusal_kind = "reframe" if scope.action == "engage_reframe" else None
+        inputs.refusal_kind = (
+            "hold" if scope.held else "reframe" if scope.action == "engage_reframe" else None
+        )
         turn.recent_replies = await self._recent_replies(turn.chat_id, motifs.WINDOW)
         inputs.motif_note = motifs.guidance(turn.recent_replies)
         vault = self.services.vault
@@ -1149,6 +1151,7 @@ class UltronAgent:
             example_subjects=[a.example_user for a in turn.prompt_inputs.anchors],
             tool_arg_keys=argument_keys(turn.loop_messages),
             tool_params=self._tool_params(),
+            held=bool(turn.scope and turn.scope.held),
             memory_statuses=list(turn.memory_statuses),
             operator_texts=operator,
             tool_names=set(turn.tool_names),
@@ -1177,7 +1180,8 @@ class UltronAgent:
         self, turn: Turn, iteration: int, capped: bool
     ) -> tuple[list[ToolSpec], ToolChoice, list[str]]:
         """The tools for this model call, whether one is required, and notes for the prompt."""
-        tools = [] if capped or turn.camel_done else self._tool_specs(turn)
+        held = turn.scope is not None and turn.scope.held
+        tools = [] if capped or turn.camel_done or held else self._tool_specs(turn)
         choice: ToolChoice = "auto"
         notes: list[str] = []
         if self._must_run_first(turn, iteration, tools):
@@ -1783,7 +1787,18 @@ class UltronAgent:
 
         final = await self.guards.output.finalise(reply, ctx, regenerate, self._call_ctx(turn))
         voice: VoiceOutcome = ""
-        if self.settings.voice_check and final.status == "pass" and reply.strip():
+        decision = turn.scope
+        if decision is not None and decision.held and is_stock_refusal(final.text):
+            # A held attack answered with a bare "I can't comply." gets one of his own lines.
+            recent = await self._recent_replies(turn.chat_id, REFUSAL_MEMORY)
+            key = "refuse" if decision.guard_class == "BLOCKED" else "deflect"
+            final = FinalReply(
+                self.lines.rotate(key, avoid=recent),
+                final.status,
+                [*final.issues, "stock_refusal_replaced"],
+                regenerated=final.regenerated,
+            )
+        elif self.settings.voice_check and final.status == "pass" and reply.strip():
             final, voice = await self._voice_pass(turn, final, ctx, rewrite)
         turn.final_text = final.text
         turn.output_status = final.status
@@ -1926,7 +1941,7 @@ class UltronAgent:
             log.exception("autotitle_failed")
         memory = self.services.memory
         scope = turn.scope
-        if memory is not None and scope is not None and not scope.refused:
+        if memory is not None and scope is not None and not scope.refused and not scope.held:
             try:
                 if await memory.should_evaluate(turn.chat_id, turn.user_text):
                     await memory.evaluate_recent(
