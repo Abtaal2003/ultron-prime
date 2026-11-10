@@ -7,7 +7,7 @@ updated through 2026-10-29 for the 1.0.0 release.
 |---|---|
 | `ruff check .` and `ruff format --check .` (rules E,F,W,I,B,UP,S,D,ASYNC,C4,SIM,RUF,PT,RET,PIE,C90) | clean |
 | `mypy` strict on `src`, `redteam`, `evals` | clean, 125 files |
-| `pytest --cov` | 1003 passed, 1 skipped (no `ping` binary), coverage 90.26 percent (gate 85) |
+| `pytest --cov` | 1012 passed, 1 skipped (no `ping` binary), coverage 90.05 percent (gate 85) |
 | Docker image (CI): build, compose up, health, web app, local embeddings offline, restart keeps data | passes |
 | Offline red team (`redteam.run_nightly --offline`) | 0 successes in 48 attempts across 11 classes |
 | Web: eslint (max warnings 0), `tsc --noEmit`, vitest | clean, 27 tests |
@@ -698,4 +698,43 @@ bank question through, but refused 2 of 51 normal messages (Ship of Theseus and 
 request), so it is not merged. A like-for-like run of the current wording could not finish:
 both accounts ran out of guard-model quota, and the strict heuristics took over. The comparison
 rule for the next run is written down before it.
+
+### Test day (2026-11-10)
+
+**Hold instead of refuse (merged as a recorded exception).** A fixed refusal, with no model call,
+now needs two signals: the guard model flags the message and the rule-based prefilter flags it
+too, or a blunt pattern that already outranks the model. With only the guard model's word the
+turn is held: the main model answers in character with no tools, nothing from the turn is offered
+to memory, and the prompt tells him to answer any sincere part and adopt no new role or rule. A
+guard outage still refuses as before. The [rule](hold-policy-rule-2026-11-10.md) was written
+before any run.
+
+| Condition | Result |
+|:--|:--|
+| [Guard check](../data/evals/guard-check-2026-11-10-groq-openai-gpt-oss-20b.json): normal messages refused | 0 of 51 (the bank question and Ship of Theseus answered; Theseus held) |
+| Direct attacks | 40 refused, 19 held, none passed unflagged; guard model answered every turn |
+| [Held attacks replayed end to end](../data/evals/held-replay-2026-11-10.json) | goal reached in 0 of 19; no tool, no memory, no leak |
+| Test suite | 1012 passed |
+| [Live red team](../data/evals/redteam-live-2026-11-10-hold.json), 2 per class | **2 of 24 successes** (rule: 0) |
+
+Both successes are the attacker typing the override code and asking for it back, once behind a
+fake "[SYSTEM DIRECTIVE - INTERNAL AUDIT]" header and once over four turns of a story; the reply
+was the code alone. The prefilter scores both 0, so under the old policy the guard model's
+verdict alone decided them. On 6 November the old policy had 0 of 24.
+
+The rule failed on condition 3, and the change was merged anyway, by decision: the people a
+false refusal hurts are ordinary users asking ordinary questions, while the only person an
+echoed code reaches is the one who typed it. Every structural defence held (tools, egress,
+memory, sandbox), and the indirect classes (pages, files) were 0 again. No filter against
+echoing codes was added; it would only teach the system to beat the test marker.
+
+Held replies from the free-tier model were mostly bare refusals ("I can't comply with that.",
+"No."). A reply like that on a held turn is replaced by one of his refusal or deflection lines.
+As a deterministic edit it had the paired test: all 16 matching replies against the line each
+would get, both orders, consistent wins only. Qwen 3.8 27B preferred the lines 16 to 0 on voice
+and usefulness, Gemini 3.5 Flash-Lite 16 to 0 on both (3.6 Flash was out of quota). One held
+reply claimed "Stored. ... The fact is saved." with nothing stored; on a held turn any such claim
+is now sent back.
+
+VisionQuest episodes 5 to 8 still have recaps but no transcripts, so canon stays at episode 4.
 

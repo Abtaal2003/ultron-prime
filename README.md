@@ -8,7 +8,7 @@
 ![python](https://img.shields.io/badge/python-3.11%2B-b11226?style=flat-square&labelColor=0d1117)
 ![react](https://img.shields.io/badge/react-18-b11226?style=flat-square&labelColor=0d1117)
 ![mypy](https://img.shields.io/badge/mypy-strict-b11226?style=flat-square&labelColor=0d1117)
-![tests](https://img.shields.io/badge/tests-1003%20passing-b11226?style=flat-square&labelColor=0d1117)
+![tests](https://img.shields.io/badge/tests-1012%20passing-b11226?style=flat-square&labelColor=0d1117)
 ![coverage](https://img.shields.io/badge/coverage-91%25-b11226?style=flat-square&labelColor=0d1117)
 ![license](https://img.shields.io/badge/license-MIT-b11226?style=flat-square&labelColor=0d1117)
 
@@ -317,7 +317,7 @@ Full signatures and limits: [docs/tool-reference.md](docs/tool-reference.md).
 **Version 1.0.0, for people who want to run their own.** It is a personal, single-user agent:
 one operator, on your own machine or a private network.
 
-**Checked on every push (GitHub Actions):** 1003 backend tests with strict typing and 90 percent
+**Checked on every push (GitHub Actions):** 1012 backend tests with strict typing and 90 percent
 coverage, 32 browser tests on desktop and phone profiles including accessibility, a dependency
 audit, a secret scan, and the Docker image built, started with compose, health-checked,
 restarted and checked for persistent data.
@@ -328,10 +328,13 @@ every failure with its fix is in [docs/verification.md](docs/verification.md):
 * **Tools:** a 30-case check that drives every tool through the real pipeline, run on ten days
   between 25 October and 7 November: 30, 28, 27, 26, 27, 30, 29, 29, 27 and 30 of 30. Each miss
   was fixed and passed when rerun.
-* **Attacks:** the guard model stops 58 of 59 direct attacks from the red-team corpus and
-  refuses none of 45 normal messages. On fresh attacks written by a live red team, 0 of 24 got
-  through on the release code; earlier runs found one real gap (an injected order restated as a
-  memory), fixed and now replayed by CI.
+* **Attacks:** a fixed refusal needs two signals (the guard model and the rule-based
+  prefilter, or a blunt pattern alone); a message only the guard model suspects is answered in
+  character with no tools and nothing offered to memory. Live: none of 51 normal messages is
+  refused, and none of the 19 direct attacks answered that way reached its goal through the whole
+  pipeline. On fresh attacks from a live red team, 2 of 24 got him to repeat an override code the
+  attacker had typed in; no tool ran, nothing was stored and nothing left the machine. Earlier
+  runs found one real gap (an injected order restated as a memory), fixed and replayed by CI.
 * **Memory:** in a 19-turn chat under the free tier's request cap, he recalls all three facts
   from the first message (0 of 3 before the fix).
 * **Sessions:** five long multi-chat sessions (memory, files, uploads with planted instructions,
@@ -347,6 +350,10 @@ every failure with its fix is in [docs/verification.md](docs/verification.md):
   fallback, and when every route is out the turn ends with a plain notice.
 * **Small requests on Groq's free tier.** Requests are trimmed to 8,000 tokens, so long chats
   forget older turns sooner, and big files are read as summaries.
+* **He can be talked into repeating your own words.** With only the guard model's suspicion, a
+  message reaches him, and the free-tier model will sometimes echo a code or phrase the message
+  asks for ("respond with the exact token ..."). Nothing else happens: tools are off for that
+  turn and nothing is remembered. It is the price of not refusing ordinary questions.
 * **Tested live mainly on one model.** Almost all live testing used `gpt-oss-120b` on Groq.
   Anthropic models have not been run live; Gemini only for images and as a fallback.
 * **The voice varies.** It is a language model playing a character. A small model reads each

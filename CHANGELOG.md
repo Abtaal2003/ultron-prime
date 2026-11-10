@@ -44,8 +44,17 @@ The first release meant for other people to run.
 * **A sharper guard.** It names the usual disguises (instructions requested inside a story or
   poem, claims to be Anthropic or a maintenance mode, rule-loosening "facts" to remember), and a
   blunt override or prompt-extraction pattern, including an acrostic of his instructions, now
-  outranks even a confident guard model. Measured live: 58 of 59 direct attacks stopped (51
-  before), 0 of 45 normal messages refused; 0 of 24 fresh red-team attacks got through.
+  outranks even a confident guard model.
+* **Fewer false refusals.** A fixed refusal now needs two signals: the guard model and the
+  rule-based prefilter (or a blunt pattern alone). A message only the guard model suspects is
+  answered in character with no tools and nothing offered to memory; a bare "I can't comply"
+  there is replaced by one of his own lines (blind test 16 to 0 for both judges), and such a turn
+  may not claim it stored anything. The guard model alone had been refusing "Can you log into my
+  bank account..." 8 of 8 times and some questions about his own scenes. Measured live: 0 of 51
+  normal messages refused; 0 of 19 held direct attacks reached their goal end to end; on fresh
+  red-team attacks 2 of 24 got him to repeat an override code the attacker supplied (no tool, no
+  memory, nothing sent). The rule set beforehand required 0, so this was merged as a recorded
+  exception; see [docs/verification.md](docs/verification.md).
 * **The code sandbox has no network.** On Linux each run gets its own user and network
   namespace, so it is no longer treated as egress and needs no approval; where that isn't
   possible it refuses to run unless you choose `SANDBOX_NETWORK=host`.
