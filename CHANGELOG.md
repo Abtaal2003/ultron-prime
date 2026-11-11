@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0 (2026-11-09)
+## 1.0.0 (2026-11-11)
 
 The first release meant for other people to run.
 
